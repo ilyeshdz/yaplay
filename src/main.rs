@@ -1,38 +1,47 @@
 pub mod components;
 pub mod data;
+pub mod hotkey;
+pub mod state;
+pub mod websocket;
+pub mod windows;
+
 use freya::prelude::*;
-use freya::winit::window::WindowLevel::AlwaysOnTop;
-use crate::components::user_cell::UserCell;
+
+use crate::components::config_list;
 
 fn main() {
+    if let Err(err) = hotkey::register() {
+        eprintln!("Failed to register the global shortcut: {err}");
+    }
+
     launch(
-        LaunchConfig::new().with_window(
-            WindowConfig::new(app)
-                .with_decorations(false)
-                .with_transparency(true)
-                .with_background((0, 0, 0, 0))
-                .with_window_attributes(|attrs, _| {
-                    attrs
-                        .with_window_level(AlwaysOnTop)
-                        .with_maximized(true)
-                })
-                .with_window_handle(|window| {
-                    window.set_cursor_hittest(false).unwrap();
-                })
-        ),
-    )
+        LaunchConfig::new()
+            .with_window(WindowConfig::new(app).with_min_size(400.0, 800.0)),
+    );
 }
 
 fn app() -> impl IntoElement {
+    use_init_theme(dark_theme);
+
     rect()
-        .width(Size::px(200.0))
-        .height(Size::px(200.0))
-        .child(UserCell {
-            image_color: Color::BLUE,
-            name: String::from("my name")
-        })
-        .child(UserCell {
-            image_color: Color::RED,
-            name: String::from("my second name")
-        })
+        .width(Size::fill())
+        .height(Size::fill())
+        .theme_background()
+        .theme_color()
+        .padding(Gaps::new_all(32.0))
+        .child(
+            rect()
+                .width(Size::fill())
+                .height(Size::fill())
+                .vertical()
+                .spacing(24.0)
+                .child(
+                    rect()
+                        .vertical()
+                        .spacing(8.0)
+                        .child(label().text("Yaplay").title().theme_color())
+                        .child(label().text("Configure your experience").subtitle().theme_color()),
+                )
+                .child(config_list()),
+        )
 }
