@@ -6,7 +6,6 @@ use global_hotkey::{
 };
 
 static HOTKEY_ID: OnceLock<u32> = OnceLock::new();
-static MANAGER: OnceLock<GlobalHotKeyManager> = OnceLock::new();
 
 pub fn register() -> Result<(), global_hotkey::Error> {
     let modifiers = if cfg!(target_os = "macos") {
@@ -19,7 +18,10 @@ pub fn register() -> Result<(), global_hotkey::Error> {
     let manager = GlobalHotKeyManager::new()?;
     manager.register(hotkey)?;
 
-    let _ = MANAGER.set(manager);
+    // The manager must stay alive for the lifetime of the process. On Windows it
+    // contains a raw pointer, so it cannot be stored in a global static.
+    std::mem::forget(manager);
+
     let _ = HOTKEY_ID.set(hotkey.id());
     Ok(())
 }
