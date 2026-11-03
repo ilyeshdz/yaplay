@@ -1,48 +1,160 @@
 # Yaplay
 
-Yaplay is a small desktop overlay app built with Rust and Freya. It shows a voice call roster and notifications on top of your other windows, plus a little control panel you can toggle with a keyboard shortcut.
+Yaplay is a desktop overlay for voice calls. It shows a call roster and notifications on top of your other windows. It is built in Rust with Freya.
 
 ## What it does
 
-When you press Start in the settings window, Yaplay starts a WebSocket server, closes the settings window, and opens a transparent overlay. The overlay has a voice roster in the top left corner and notifications in the top right. It is click through, so it never blocks the apps underneath. Press Ctrl+Shift+Y on Windows or Linux, or Cmd+Shift+Y on macOS, to show a small control panel at the bottom center with mic, deafen, and exit buttons.
+Press Start in the settings window and Yaplay starts a local WebSocket server, closes the settings window, and opens a transparent overlay. The roster is in the top left and notifications are in the top right. The overlay is click through, so it does not block the windows below it.
 
-Yaplay listens for WebSocket connections on 127.0.0.1 with the port you pick in the settings, 8080 by default.
+Press `Ctrl+Shift+Y` on Windows or `Cmd+Shift+Y` on macOS to show the control panel. It has mic, deafen, and exit buttons. These buttons only change what Yaplay displays. They do not send anything back to the connected client.
 
-## Building and running
+Yaplay listens on `127.0.0.1:<port>`. The default port is `8080`.
 
-You need Rust. Then run:
+## Build
 
+You need Rust 1.85 or newer. On Windows you also need the C++ Build Tools with the Windows SDK. On macOS you need the Xcode Command Line Tools.
+
+```sh
+cargo run --release
 ```
-cargo run
+
+To build without running:
+
+```sh
+cargo build --release --locked
 ```
 
-This opens the settings window. Pick your display, choose a port, and press Start.
+The binary is written to `target/release/`. The GitHub Actions workflow builds Windows and macOS releases:
 
-## Making a bridge plugin
+- Windows: `yaplay-windows-x86_64.exe`
+- macOS Apple Silicon: `Yaplay-macos-aarch64.dmg` and `Yaplay-macos-aarch64.app.zip`
+- macOS Intel: `Yaplay-macos-x86_64.dmg` and `Yaplay-macos-x86_64.app.zip`
 
-A bridge plugin is just any program that connects to Yaplay over WebSocket and sends it messages. You can write it in whatever language you like, Node, Python, Rust, anything that has a WebSocket client. There is no special SDK and nothing to install into Yaplay. The plugin and Yaplay talk to each other over the socket.
+Pushing a tag like `v0.1.0` attaches these files to a GitHub Release. Open the DMG and drag Yaplay to Applications, or unzip the app bundle and run it directly.
 
-First connect to the WebSocket at ws://127.0.0.1:8080, or whichever port you configured. Once you are connected, you send plain JSON messages. Each message has a type field that tells Yaplay what to do with it.
+## Connecting a client
 
-To show the voice roster, send a voice state message. The members array holds everyone in the call. Give each member an id, a name, a color as three numbers for red, green, and blue, and flags for whether they are speaking, muted, or you. Set in_call to true when someone is in a call, and false when the call ends. Here is an example:
+Any program that can open a WebSocket can control the overlay. There is no SDK and no handshake. Connect to `ws://127.0.0.1:8080`, or whatever port you set in Yaplay, and send JSON text messages.
 
-```
+Each message has a `type` field. Multiple clients can connect at once. New `voice_state`, `mic_state`, and `deafen_state` messages replace the previous state. Notifications are added to a list and disappear after about 8 seconds. Yaplay does not send replies.
+
+### voice_state
+
+Send the full roster whenever someone joins, leaves, speaks, mutes, or changes name or color.
+
+```json
 {
   "type": "voice_state",
   "in_call": true,
   "members": [
-    { "id": "self", "name": "You", "color": [103, 80, 164], "speaking": false, "muted": false, "is_self": true },
-    { "id": "ada", "name": "Ada", "color": [233, 30, 99], "speaking": true, "muted": false, "is_self": false }
+    {
+      "id": "self",
+      "name": "You",
+      "color": [103, 80, 164],
+      "speaking": false,
+      "muted": false,
+      "is_self": true
+    },
+    {
+      "id": "ada",
+      "name": "Ada",
+      "color": [233, 30, 99],
+      "speaking": true,
+      "muted": false,
+      "is_self": false
+    }
   ]
 }
 ```
 
-To pop up a notification in the top right corner, send a notification message with a title and a body:
+- `in_call`: whether the user is in a call.
+- `members`: everyone in the call.
+- `id`: a stable id for the member.
+- `name`: the display name.
+- `color`: red, green, and blue values from 0 to 255.
+- `speaking`: draws a border around the avatar.
+- `muted`: dims the name and shows a red dot.
+- `is_self`: adds "(you)" after the name.
 
+To end the call, send:
+
+```json
+{ "type": "voice_state", "in_call": false, "members": [] }
 ```
+
+### notification
+
+```json
 { "type": "notification", "title": "Hello", "body": "Someone joined the call" }
 ```
 
-You can also push the mic and deafen state so the control panel reflects what is happening on your side. Send mic_state with muted set to true or false, and deafen_state with deafened set to true or false.
+### mic_state and deafen_state
 
-That is really all there is to it. Connect, send JSON, and the overlay updates. Send a voice state whenever the call changes, send notifications when something happens, and you have a working bridge.
+Use these to update the control panel and the mute indicator for the local user.
+
+```json
+{ "type": "mic_state", "muted": true }
+```
+
+```json
+{ "type": "deafen_state", "deafened": true }
+```
+
+### Example
+
+Install `ws` with `npm install ws`, then run this:
+
+```js
+import WebSocket from "ws";
+
+const socket = new WebSocket("ws://127.0.0.1:8080");
+
+socket.on("open", () => {
+  socket.send(JSON.stringify({
+    type: "voice_state",
+    in_call: true,
+    members: [
+      {
+        id: "self",
+        name: "You",
+        color: [103, 80, 164],
+        speaking: false,
+        muted: false,
+        is_self: true
+      }
+    ]
+  }));
+});
+
+function send(message) {
+  if (socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify(message));
+  }
+}
+
+export function setRoster(members) {
+  send({ type: "voice_state", in_call: true, members });
+}
+
+export function notify(title, body) {
+  send({ type: "notification", title, body });
+}
+
+export function setMic(muted) {
+  send({ type: "mic_state", muted });
+}
+
+export function setDeafen(deafened) {
+  send({ type: "deafen_state", deafened });
+}
+```
+
+If the connection drops, reconnect and send the current roster again.
+
+## Notes
+
+- The server only listens on localhost and has no authentication.
+- Send the whole roster instead of trying to update single members.
+- Keep member ids stable between updates.
+- Invalid messages are logged and ignored.
+- The macOS app is not notarized. Allow it in System Settings if macOS blocks it.
