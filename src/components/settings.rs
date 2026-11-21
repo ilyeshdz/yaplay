@@ -10,7 +10,7 @@ use crate::{
 };
 use gpui::{prelude::*, *};
 use gpui_component::{
-    IndexPath,
+    Disableable, IndexPath,
     button::{Button, ButtonVariants},
     input::{Input, InputState},
     select::{Select, SelectEvent, SelectItem, SelectState},
@@ -49,6 +49,8 @@ pub struct Settings {
     colors: Vec<Entity<InputState>>,
     sliders: Vec<Entity<SliderState>>,
     error: String,
+    start_at_login: Option<bool>,
+    startup_error: String,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -140,7 +142,16 @@ impl Settings {
                 slider
             })
             .collect();
+        let (start_at_login, startup_error) = match crate::autostart::is_enabled() {
+            Ok(enabled) => (Some(enabled), String::new()),
+            Err(error) => (
+                None,
+                format!("Cannot read start-at-login setting: {error:#}"),
+            ),
+        };
         Self {
+            start_at_login,
+            startup_error,
             display,
             config,
             port,
@@ -149,6 +160,23 @@ impl Settings {
             error,
             _subscriptions: subscriptions,
         }
+    }
+    fn set_start_at_login(&mut self, enabled: bool, cx: &mut Context<Self>) {
+        match crate::autostart::set_enabled(enabled) {
+            Ok(actual) => {
+                self.start_at_login = Some(actual);
+                self.startup_error.clear();
+                if actual != enabled {
+                    self.startup_error = "The operating system did not apply the startup preference. Check your system's startup settings.".into();
+                }
+            }
+            Err(error) => {
+                // An OS operation can partially succeed; always re-read its state.
+                self.start_at_login = crate::autostart::is_enabled().ok();
+                self.startup_error = format!("Cannot change start-at-login setting: {error:#}");
+            }
+        }
+        cx.notify();
     }
     fn appearance(&self, cx: &App) -> Appearance {
         let mut style = self.config.appearance.clone();
@@ -269,6 +297,22 @@ impl Render for Settings {
                     .text_color(rgb(theme::MUTED))
                     .child("Press Save or Start to apply this preference."),
             )
+            .child(
+                Switch::new("start-at-login")
+                    .label("Start Yaplay when I sign in")
+                    .checked(self.start_at_login.unwrap_or(false))
+                    .disabled(self.start_at_login.is_none())
+                    .on_click(cx.listener(|this, value, _, cx| {
+                        this.set_start_at_login(*value, cx);
+                    })),
+            )
+            .child(
+                div().text_sm().text_color(rgb(theme::MUTED))
+                    .child("Applies immediately for your user account. Install Yaplay in a permanent location first."),
+            )
+            .when(!self.startup_error.is_empty(), |form| {
+                form.child(div().text_sm().text_color(rgb(0xff8c8c)).child(self.startup_error.clone()))
+            })
             .child(div().text_lg().child("Overlay settings"));
         form = form.child(
             div().flex().flex_col().gap_2().child("Display").child(

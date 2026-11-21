@@ -1,5 +1,6 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
+pub mod autostart;
 pub mod components;
 pub mod data;
 pub mod hotkey;
