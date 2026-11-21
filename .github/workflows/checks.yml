@@ -2,7 +2,7 @@ name: Checks
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, edited, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 permissions:
@@ -50,18 +50,6 @@ jobs:
       - run: node --test examples/yaplay-client.test.mjs
       - name: Validate workflows
         run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.7 -color
-      - name: Validate conventional PR title
-        if: github.event_name == 'pull_request'
-        env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
-        run: |
-          node --input-type=module -e '
-            const title = process.env.PR_TITLE;
-            if (!/^(feat|fix|perf|docs|refactor|test|build|ci|chore|style|revert)(\([^)]+\))?!?: .+/.test(title)) {
-              console.error("Use a Conventional Commit title, e.g. feat: add voice overlay");
-              process.exit(1);
-            }
-          '
 
   rust:
     name: Rust lint and tests
@@ -80,7 +68,7 @@ jobs:
 
   required:
     name: Required checks
-    if: always()
+    if: ${{ !cancelled() }}
     needs: [changes, quality, rust]
     runs-on: ubuntu-latest
     steps:

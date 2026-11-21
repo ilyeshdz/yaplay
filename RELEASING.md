@@ -13,7 +13,8 @@ example wrapper ship from this repository but do not have independent versions.
   PR titles must follow Conventional Commits. Preserve any `BREAKING CHANGE:`
   footer in the squash commit body.
 - If branch protection is used, require **Required checks** from the Checks
-  workflow. Website validation also runs when its files change; do not require
+  workflow. Human-authored PRs also get a **Conventional PR title** check; title
+  edits run only that workflow, not code checks. Website validation also runs when its files change; do not require
   a path-filtered workflow on every PR. Remove any old required release-build
   checks, since those no longer run on PRs.
 - GitHub Pages still needs **Settings → Pages → GitHub Actions**. Website
@@ -46,9 +47,10 @@ Windows-specific compilation is checked at release time.
 ## Versioning and changelog
 
 There are no existing published releases. The empty manifest deliberately lets
-Release Please create the first `0.1.0` release from the repository's history;
-`Cargo.toml` already contains that development version. Do not prefill the
-manifest with `0.1.0`, which would imply it had already been released.
+Release Please create the first `1.0.0` release from the repository's history.
+`Cargo.toml` currently contains development version `0.1.0`; the release PR will
+bump it and the lockfile to `1.0.0`. Do not prefill the
+manifest with `1.0.0`, which would imply it had already been released.
 
 After bootstrap:
 
@@ -88,7 +90,7 @@ This avoids an extra PAT and avoids missing CI on bot PRs.
 - **Release Please failed before publishing:** rerun its failed job, or dispatch
   **Release Please** on `master`. It reconciles existing release PRs and tags.
 - **Packaging/upload failed after publishing:** dispatch **Release assets** with
-  the existing tag (for example `v0.1.0`). Do not rerun only Release Please and
+  the existing tag (for example `v1.0.0`). Do not rerun only Release Please and
   expect `release_created` to become true again.
 - The packaging workflow rejects missing releases and tags whose version differs
   from `Cargo.toml`. It checks out the tag's immutable commit rather than the

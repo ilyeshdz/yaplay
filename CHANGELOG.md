@@ -3,7 +3,7 @@
 ## Before the first release
 
 No version has been published yet. This section records the initial development
-baseline; the first Release Please PR will add the dated `0.1.0` entry above it.
+baseline; the first Release Please PR will add the dated `1.0.0` entry above it.
 After that, each release PR collects the changes since the previous release.
 
 ### Features
@@ -27,6 +27,9 @@ After that, each release PR collects the changes since the previous release.
   and message/frame sizes.
 
 ### Automation
+
+- Keep PR title edits from restarting code checks, and avoid reporting cancelled
+  checks as failures.
 
 - Release Please manages version bumps, changelog entries, tags, and release notes.
 - Windows and macOS release binaries are packaged only for an actual release,
