@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.0](https://github.com/ilyeshdz/yaplay/compare/v1.2.0...v1.3.0) (2026-11-21)
+
+
+### Features
+
+* add direct downloads and release notes ([#8](https://github.com/ilyeshdz/yaplay/issues/8)) ([7d9104e](https://github.com/ilyeshdz/yaplay/commit/7d9104e310590a9fa296c98e7f0248d5efeafd89))
+* add signed automatic updates ([#9](https://github.com/ilyeshdz/yaplay/issues/9)) ([e51d7ed](https://github.com/ilyeshdz/yaplay/commit/e51d7ed12eba645957a12cbe831cd557c3ee5e03))
+
 ## [1.2.0](https://github.com/ilyeshdz/yaplay/compare/v1.1.0...v1.2.0) (2026-11-21)
 
 
