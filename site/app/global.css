@@ -75,20 +75,20 @@ body { background: var(--yaplay-bg); color: var(--yaplay-text); }
 .desktop-preview { padding: clamp(12px, 3vw, 32px); border: 1px solid #ffb49b38; border-radius: 24px; background: radial-gradient(circle, #ffb49b38 1px, transparent 1px) 0 0 / 9px 9px, linear-gradient(145deg, #2d2425, #47312d); }
 .overlay-viewport { overflow-x: auto; border: 1px solid var(--yaplay-border); border-radius: 12px; }
 .overlay-screen { min-width: 640px; height: 290px; position: relative; background: #202020; color: #f3f1f0; font: 16px/1.2 Arial, Helvetica, sans-serif; }
-.voice-panel, .notification-panel { position: absolute; top: 48px; background: rgba(28, 28, 34, .921569); border: 1px solid #34343e; border-radius: 12px; }
-.voice-panel { left: 24px; padding: 12px; }
-.voice-heading { font-size: 14px; color: #b4b1ba; margin-bottom: 8px; }
-.voice-members { display: flex; flex-direction: column; gap: 6px; }
-.voice-member { display: flex; align-items: center; gap: 8px; }
-.voice-avatar { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; color: white; flex-shrink: 0; }
+.voice-panel, .notification-panel { position: absolute; top: 24px; background: rgba(28, 28, 34, .92); border-radius: 12px; }
+.voice-panel { left: 24px; padding: 12px; width: 260px; }
+.voice-heading { font-size: 13px; color: #f3f1f0; height: 26px; }
+.voice-members { display: flex; flex-direction: column; }
+.voice-member { display: flex; align-items: center; gap: 8px; height: 38px; font-size: 14px; }
+.voice-avatar { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; color: white; flex-shrink: 0; }
 .voice-avatar.self { background: rgb(103, 80, 164); }
-.voice-avatar.speaking { background: rgb(76, 175, 80); border: 2px solid rgb(129, 199, 132); }
+.voice-avatar.speaking { background: rgb(76, 175, 80); outline: 2px solid #ffb49b; outline-offset: 2px; }
 .voice-avatar.theo { background: rgb(255, 193, 7); }
-.voice-member.muted { color: #b4b1ba; }
+.voice-member.muted { color: #f3f1f0; }
 .mute-dot { width: 8px; height: 8px; background: rgb(229, 115, 115); border-radius: 50%; }
 .notification-panel > :first-child { font-size: 14px; }
-.notification-panel { right: 24px; width: 320px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
-.notification-body { color: #b4b1ba; }
+.notification-panel { right: 24px; width: 320px; height: 98px; padding: 12px; display: flex; flex-direction: column; gap: 4px; }
+.notification-body { color: #f3f1f0; font-size: 13px; }
 .overlay-example figcaption { margin-top: 10px; font-size: 12px; color: var(--yaplay-muted); }
 .download-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 28px 0 20px; }
 .download-options a { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 24px; border: 1px solid #ffb49b30; border-radius: 20px; background: linear-gradient(150deg, #ffb49b0d, transparent 65%), var(--yaplay-surface); font-weight: 600; }

@@ -1,52 +1,118 @@
-use freya::prelude::*;
+use super::user_cell::user_cell;
+use crate::{data::appearance::Appearance, state::VoiceMember};
+use gpui::{App, div, prelude::*, px};
 
-use crate::state::VoiceMember;
-
-use super::user_cell::UserCell;
-
-pub fn voice_list(members: &[VoiceMember], mic_muted: bool, in_call: bool) -> impl IntoElement {
-    let theme = use_theme();
-    let colors = theme.read().colors.clone();
-
-    let show = in_call || !members.is_empty();
-
-    let mut panel = rect()
-        .position(Position::new_global().top(48.0).left(24.0))
-        .vertical()
-        .spacing(8.0)
-        .padding(if show {
-            Gaps::new_all(12.0)
-        } else {
-            Gaps::new_all(0.0)
-        })
-        .background(if show {
-            crate::theme::OVERLAY_SURFACE
-        } else {
-            Color::TRANSPARENT
-        })
-        .corner_radius(12.0)
-        .border(if show {
-            Border::new().fill(colors.border).width(1.0)
-        } else {
-            Border::new()
-        });
-
-    if show {
-        panel = panel.child(label().text("Voice").body().color(colors.text_secondary));
-
-        let mut list = rect().vertical().spacing(6.0);
-        for member in members {
-            let muted = member.muted || (member.is_self && mic_muted);
-            list = list.child(UserCell {
-                name: member.name.clone(),
-                color: Color::from_rgb(member.color.0, member.color.1, member.color.2),
-                speaking: member.speaking,
-                muted,
-                is_self: member.is_self,
-            });
-        }
-        panel = panel.child(list);
+/// Stable within each priority group, so quiet participants do not shuffle every frame.
+pub fn visible_members<'a>(
+    members: &'a [VoiceMember],
+    style: &Appearance,
+    capacity: usize,
+) -> (Vec<&'a VoiceMember>, usize) {
+    let mut members: Vec<_> = members
+        .iter()
+        .filter(|m| style.show_self || !m.is_self)
+        .collect();
+    if style.speakers_first {
+        members.sort_by_key(|m| (!m.speaking, !m.is_self));
     }
+    let hidden = members.len().saturating_sub(capacity);
+    members.truncate(capacity);
+    (members, hidden)
+}
 
+pub fn voice_list(
+    members: &[VoiceMember],
+    mic_muted: bool,
+    in_call: bool,
+    style: &Appearance,
+    viewport: (f32, f32),
+    cx: &mut App,
+) -> impl IntoElement {
+    let margin = style.margin as f32;
+    let mut panel = div().absolute().flex().flex_col();
+    panel = if style.position.is_right() {
+        panel.right(px(margin))
+    } else {
+        panel.left(px(margin))
+    };
+    panel = if style.position.is_bottom() {
+        panel.bottom(px(margin))
+    } else {
+        panel.top(px(margin))
+    };
+    if !in_call && members.is_empty() {
+        return panel;
+    }
+    let width =
+        (style.width as f32 * style.factor()).min((viewport.0 / 2.0 - margin * 2.0).max(60.0));
+    panel = panel
+        .w(px(if style.show_names {
+            width
+        } else {
+            80.0 * style.factor()
+        }))
+        .max_h(px((viewport.1 - margin * 2.0).max(0.0)))
+        .overflow_hidden()
+        .p(px(12.0))
+        .bg(style.surface())
+        .rounded(px(style.radius as f32));
+    if style.show_header {
+        panel = panel.child(
+            div()
+                .h(px(26.0 * style.factor()))
+                .flex_shrink_0()
+                .text_ellipsis()
+                .text_size(px(13.0 * style.factor()))
+                .text_color(style.text())
+                .child(format!("Voice · {}", members.len())),
+        );
+    }
+    let (visible, hidden) = visible_members(members, style, style.capacity(viewport.1));
+    for member in visible {
+        panel = panel.child(user_cell(member, mic_muted, style, cx));
+    }
+    if hidden > 0 {
+        panel = panel.child(
+            div()
+                .text_size(px(12.0 * style.factor()))
+                .text_color(style.text())
+                .child(format!("+{hidden} more")),
+        );
+    }
     panel
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn huge_roster_prioritizes_speakers_and_counts_overflow() {
+        let members: Vec<_> = (0..500)
+            .map(|i| VoiceMember {
+                id: i.to_string(),
+                name: format!("Person {i}"),
+                avatar_url: None,
+                color: (1, 2, 3),
+                speaking: i == 499,
+                muted: false,
+                is_self: i == 0,
+            })
+            .collect();
+        let style = Appearance::default();
+        let (visible, hidden) = visible_members(&members, &style, 8);
+        assert_eq!(visible.len(), 8);
+        assert_eq!(hidden, 492);
+        assert_eq!(visible[0].id, "499");
+        assert_eq!(visible[1].id, "0");
+        let (visible, hidden) = visible_members(
+            &members,
+            &Appearance {
+                show_self: false,
+                ..style
+            },
+            0,
+        );
+        assert!(visible.is_empty());
+        assert_eq!(hidden, 499);
+    }
 }

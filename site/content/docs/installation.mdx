@@ -21,8 +21,10 @@ cargo build --release --locked
 cargo run --release --locked
 ```
 
-The executable is in `target/release/`. Use Ctrl+Shift+Y on Windows or Cmd+Shift+Y on macOS to open the control panel. The panel has icons for mute, deafen, settings, and exit. Select the settings icon to reopen settings; **Save** applies changes without restarting. Closing settings without saving leaves the overlay running. Exit closes Yaplay.
+The executable is in `target/release/`. Use Ctrl+Shift+Y on Windows or Cmd+Shift+Y on macOS to open the control panel. The panel has icons for mute, deafen, leave call, settings, and exit. Select the settings icon to reopen settings; **Save** applies changes without restarting. Closing settings without saving leaves the overlay running. Exit closes Yaplay.
 
-The mic and deafen buttons currently change the overlay’s display only. They do not control Yapin’s microphone or audio. There is no outbound command channel.
+Mute, deafen, and leave call send WebSocket requests to a compatible integration and wait for its confirmed state. They are disabled until the integration negotiates controls and reports an active call. See [integration](/docs/integration).
+
+Use the [appearance settings](/docs/appearance) to customize density, size, colors, placement, profile pictures, and large-call behavior.
 
 Installing Yaplay alone does not connect it to Yapin. Your client modification needs a compatible integration. If one is not available for your host, use the [integration guide](/docs/integration) to build it.

@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Migrate the desktop windows, settings, overlay, and controls from Freya to GPUI, retaining the existing settings and WebSocket protocol.
+
+- Add saved overlay appearance settings, a live settings preview, HTTPS profile pictures with initials fallback, and screen-bounded rosters with speaker prioritization and overflow counts.
+- Extend the JavaScript wrapper with negotiated control callbacks and stale-request protection.
+
+- Connect overlay mute, deafen, and leave-call controls to integrations that negotiate the v1 control protocol. Display confirmed client state, disable unavailable controls, and clear the active client’s roster on disconnect.
+
 ## [1.1.0](https://github.com/ilyeshdz/yaplay/compare/v1.0.0...v1.1.0) (2026-11-21)
 
 
@@ -13,6 +22,7 @@
 
 * align Yaplay branding with its unofficial Yapin overlay tagline ([706a19a](https://github.com/ilyeshdz/yaplay/commit/706a19a1e3f11029a54e45a4a88de5d8022015e3))
 * clarify Yapin integration through Yapmod and Yap++ ([71b9a1f](https://github.com/ilyeshdz/yaplay/commit/71b9a1f7a90daf88f2f265a70f9d831a18c7c8b3))
+
 
 ## 1.0.0 (2026-11-21)
 

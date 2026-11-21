@@ -21,6 +21,8 @@ pub const NOTIFICATION_TTL: Duration = Duration::from_secs(8);
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VoiceMember {
+    #[serde(default)]
+    pub avatar_url: Option<String>,
     pub id: String,
     pub name: String,
     pub color: (u8, u8, u8),
@@ -47,6 +49,10 @@ impl Notification {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ServerMessage {
+    Hello {
+        version: u8,
+        controls: bool,
+    },
     VoiceState {
         in_call: bool,
         members: Vec<VoiceMember>,
@@ -63,8 +69,18 @@ pub enum ServerMessage {
     },
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum ControlAction {
+    SetMute { muted: bool },
+    SetDeafen { deafened: bool },
+    LeaveCall {},
+}
+
 #[derive(Clone, PartialEq, Eq, Default)]
 pub struct OverlaySnapshot {
+    pub appearance: crate::data::appearance::Appearance,
+    pub controls_available: bool,
     pub in_call: bool,
     pub voice_members: Vec<VoiceMember>,
     pub notifications: Vec<Notification>,
@@ -75,10 +91,7 @@ pub struct OverlaySnapshot {
 
 #[derive(Default)]
 pub struct AppState {
-    pub overlay_window: Option<freya::winit::window::WindowId>,
-    pub controls_window: Option<freya::winit::window::WindowId>,
-    pub settings_window: Option<freya::winit::window::WindowId>,
-    pub settings_open: bool,
+    pub control_client: Option<tokio::sync::mpsc::Sender<ControlAction>>,
     pub startup_error: Option<String>,
     pub config: Configuration,
     pub in_call: bool,
@@ -91,6 +104,12 @@ pub struct AppState {
 }
 
 impl AppState {
+    pub fn request_control(&self, action: ControlAction) {
+        if let Some(client) = self.control_client.as_ref().filter(|_| self.in_call) {
+            let _ = client.try_send(action);
+        }
+    }
+
     pub fn push_notification(&mut self, title: impl Into<String>, body: impl Into<String>) {
         if !self.config.notifications_enabled {
             return;
@@ -116,6 +135,7 @@ impl AppState {
 
     pub fn apply(&mut self, message: ServerMessage) {
         match message {
+            ServerMessage::Hello { .. } => {}
             ServerMessage::VoiceState { in_call, members } => {
                 self.in_call = in_call;
                 self.voice_members = if in_call { members } else { Vec::new() };
@@ -132,6 +152,11 @@ impl AppState {
 
     pub fn snapshot(&self) -> OverlaySnapshot {
         OverlaySnapshot {
+            appearance: self.config.appearance.clone(),
+            controls_available: self
+                .control_client
+                .as_ref()
+                .is_some_and(|client| !client.is_closed()),
             in_call: self.in_call,
             voice_members: self.voice_members.clone(),
             notifications: self
@@ -159,6 +184,7 @@ mod tests {
             ..AppState::default()
         };
         let member = VoiceMember {
+            avatar_url: None,
             id: "self".into(),
             name: "You".into(),
             color: (103, 80, 164),
