@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.4.0](https://github.com/ilyeshdz/yaplay/compare/v1.3.0...v1.4.0) (2026-11-21)
+
+
+### Features
+
+* add configurable start at login ([#13](https://github.com/ilyeshdz/yaplay/issues/13)) ([ed7dec2](https://github.com/ilyeshdz/yaplay/commit/ed7dec2a7a1342ef57e747e17e22a83cf2a2b788))
+
+
+### Bug fixes
+
+* hide console window on Windows ([7a3450d](https://github.com/ilyeshdz/yaplay/commit/7a3450d63f7774a10256e47e06c90651181becab))
+* hide console window on Windows ([#12](https://github.com/ilyeshdz/yaplay/issues/12)) ([3a7173a](https://github.com/ilyeshdz/yaplay/commit/3a7173a1fee047dabee29ad837ad025aac9c9e7b))
+
 ## [1.3.0](https://github.com/ilyeshdz/yaplay/compare/v1.2.0...v1.3.0) (2026-11-21)
 
 
