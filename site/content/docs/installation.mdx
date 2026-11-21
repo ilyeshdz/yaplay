@@ -1,30 +1,34 @@
 ---
-title: "Install and start"
+title: "Installation"
+description: "Download Yaplay and connect your client."
 ---
 
-1.  Open [GitHub Releases](https://github.com/ilyeshdz/yaplay/releases) and choose a build for your computer.
-2.  On Windows, run `yaplay-windows-x86_64.exe`. On macOS, open the matching DMG and drag Yaplay into Applications, or unzip the app bundle.
-3.  Open Yaplay. Choose a display, enable or disable notifications, and set a port (default `8080`).
-4.  On first launch, press **Start** to save your preferences. Later launches open the overlay automatically. The settings window closes and the local server starts. The empty overlay is invisible until your modified Yapin client sends data.
-5.  Enable or configure a compatible Yaplay integration in your Yapin client modification (such as Yapmod or Yap++). Connect it to `ws://127.0.0.1:8080`. Both programs must run on the same computer.
+## 1. Download and open
 
-On Apple Silicon, choose `aarch64-apple-darwin`; on Intel Macs, choose `x86_64-apple-darwin`. macOS builds are not notarized. If macOS blocks a trusted build, review it in System Settings Privacy & Security.
+[Download Yaplay](/#download) for your computer. Downloads come directly from the latest GitHub Release.
 
-### Build from source
+- **Windows:** open the downloaded `.exe`.
+- **macOS:** open the `.dmg`, then drag Yaplay into Applications. Choose Apple Silicon or Intel to match **Apple menu → About This Mac**.
+- **Linux:** not supported yet.
 
-Install a current stable Rust toolchain (edition 2024 requires Rust 1.85 or later). Windows also needs C++ Build Tools and the Windows SDK; macOS needs Xcode Command Line Tools. Windows and macOS are the release targets; no Linux release is currently provided.
+macOS builds are not notarized. If macOS blocks a build you trust, open **System Settings → Privacy & Security** to review it.
 
-```sh
-git clone https://github.com/ilyeshdz/yaplay.git
-cd yaplay
-cargo build --release --locked
-cargo run --release --locked
-```
+## 2. Start the overlay
 
-The executable is in `target/release/`. Use Ctrl+Shift+Y on Windows or Cmd+Shift+Y on macOS to open the control panel. The panel has icons for mute, deafen, leave call, settings, and exit. Select the settings icon to reopen settings; **Save** applies changes without restarting. Closing settings without saving leaves the overlay running. Exit closes Yaplay.
+Open Yaplay, choose your display, and press **Start**. Leave the port at `8080` unless you need to change it. Yaplay remembers your settings and starts the overlay automatically next time.
 
-Mute, deafen, and leave call send WebSocket requests to a compatible integration and wait for its confirmed state. They are disabled until the integration negotiates controls and reports an active call. See [integration](/docs/integration).
+An empty overlay is invisible. You’ll see your call once a connected integration sends it.
 
-Use the [appearance settings](/docs/appearance) to customize density, size, colors, placement, profile pictures, and large-call behavior.
+## 3. Connect your Yapin client
 
-Installing Yaplay alone does not connect it to Yapin. Your client modification needs a compatible integration. If one is not available for your host, use the [integration guide](/docs/integration) to build it.
+Enable a compatible Yaplay integration in Yapmod, Yap++, or your chosen modified client. Set its connection address to `ws://127.0.0.1:8080`. Both apps must run on the same computer.
+
+This repository does not ship an installable client plugin. If your client has no integration, a developer needs to [build one](/docs/integration).
+
+## Open settings or quit
+
+Press **Ctrl+Shift+Y** on Windows or **Cmd+Shift+Y** on macOS. Select the gear for settings, then **Save** to apply changes. Select the exit icon to quit.
+
+Mute, deafen, and leave-call buttons work only when your integration supports them and you’re in a call.
+
+Need help? See [troubleshooting](/docs/troubleshooting). To compile the app yourself, see [build from source](/docs/building).

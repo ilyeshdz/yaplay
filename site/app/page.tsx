@@ -3,7 +3,8 @@ import { ArrowRight, ArrowUpRight, Bell, Download, Layers, Mic } from 'lucide-re
 import { OverlayPreview } from '@/components/overlay-preview';
 import { Wordmark } from '@/components/wordmark';
 
-const releases = 'https://github.com/ilyeshdz/yaplay/releases';
+import { DownloadButton } from '@/components/download-button';
+import { downloads, downloadUrl } from '@/lib/downloads';
 const features = [
   { title: 'Your call, in view.', text: 'See who’s talking, who’s muted, and who’s in your Yapin call above your other windows.', icon: Mic, href: '/docs', action: 'Explore Yaplay' },
   { title: 'Keep up.', text: 'Catch call activity and notifications in a small overlay while you stay with what you’re doing.', icon: Bell, href: '/docs/installation', action: 'Get started' },
@@ -15,19 +16,18 @@ export default function Home() {
     <div className="home">
       <header className="home-nav home-wrap">
         <Link href="/" aria-label="Yaplay home"><Wordmark /></Link>
-        <nav aria-label="Main navigation"><a href="#download">Download</a><Link href="/docs">Docs</Link><a href="https://github.com/ilyeshdz/yaplay">GitHub</a></nav>
+        <nav aria-label="Main navigation"><a href="#download">Download</a><Link href="/docs">Docs</Link><Link href="/releases">Releases</Link><a href="https://github.com/ilyeshdz/yaplay">GitHub</a></nav>
       </header>
       <main id="main">
         <section className="pixel-hero">
           <div className="intro home-wrap">
-            <p className="eyebrow">A little overlay. A closer connection.</p>
             <h1>Your call.<br /><span>Always in view.</span></h1>
             <p className="intro-description">Keep your Yapin call and notifications above your windows. A simple, unofficial overlay for macOS and Windows.</p>
             <div className="home-actions">
-              <a className="home-action primary-link" href="#download"><Download size={16} aria-hidden="true" />Download Yaplay</a>
+              <DownloadButton />
               <Link className="home-action secondary-link" href="/docs">Get started<ArrowRight size={16} aria-hidden="true" /></Link>
             </div>
-            <div className="hero-links"><a className="home-link" href={releases}>Release notes<ArrowRight size={14} aria-hidden="true" /></a><Link className="home-link" href="/docs/integration">Build an integration<ArrowRight size={14} aria-hidden="true" /></Link></div>
+            <div className="hero-links"><Link className="home-link" href="/releases">Release notes<ArrowRight size={14} aria-hidden="true" /></Link><Link className="home-link" href="/docs/integration">Build an integration<ArrowRight size={14} aria-hidden="true" /></Link></div>
           </div>
         </section>
         <section className="features home-wrap" aria-labelledby="features-heading">
@@ -50,13 +50,11 @@ export default function Home() {
         </section>
         <section className="downloads home-wrap" id="download">
           <h2>A little closer, on your desktop.</h2>
-          <p>Choose your build in GitHub Releases, open Yaplay, then press Start. Connect a compatible integration in your modified Yapin client to display your call.</p>
+          <p>Download the latest release, open Yaplay, and press Start. Enable a compatible integration in your modified Yapin client to show your call.</p>
           <div className="download-options">
-            <a href={releases}><div>Windows<span>x86_64</span></div><ArrowUpRight size={18} aria-hidden="true" /></a>
-            <a href={releases}><div>macOS<span>Apple Silicon</span></div><ArrowUpRight size={18} aria-hidden="true" /></a>
-            <a href={releases}><div>macOS<span>Intel</span></div><ArrowUpRight size={18} aria-hidden="true" /></a>
+            {downloads.map((build) => <a key={build.id} href={downloadUrl(build.asset)} aria-label={`Download for ${build.label}, ${build.detail}`}><div>{build.label}<span>{build.detail}</span></div><Download size={18} aria-hidden="true" /></a>)}
           </div>
-          <p className="small">macOS builds are not notarized. If a build isn’t available yet, <Link href="/docs/installation">build from source</Link>.</p>
+          <p className="small">Linux is not supported yet. macOS builds are not notarized. Need help? <Link href="/docs/installation">Read the installation guide</Link>.</p>
         </section>
       </main>
       <footer className="home-wrap"><p>An independent overlay for Yapin, built for your desktop.</p><nav aria-label="Community"><a className="home-link" href="https://github.com/ilyeshdz/yaplay">GitHub<ArrowUpRight size={14} aria-hidden="true" /></a><a className="home-link" href="https://github.com/ilyeshdz/yaplay/issues">Issues<ArrowUpRight size={14} aria-hidden="true" /></a></nav></footer>

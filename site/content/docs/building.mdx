@@ -1,0 +1,20 @@
+---
+title: "Build from source"
+description: "For developers working on Yaplay."
+---
+
+Use macOS or Windows with a current stable Rust toolchain (Rust 1.85 or later). Windows needs C++ Build Tools and the Windows SDK. macOS needs Xcode Command Line Tools.
+
+```sh
+git clone https://github.com/ilyeshdz/yaplay.git
+cd yaplay
+cargo run --release --locked
+```
+
+The executable is in `target/release/`. Follow [installation](/docs/installation) to connect a client integration.
+
+## Releases
+
+Release Please manages versions, the changelog, tags, and GitHub release notes. Merge Conventional Commit changes into `master`, then review and merge the generated release PR. GitHub Actions packages Windows and macOS downloads and refreshes this website.
+
+Do not create release tags or edit version numbers by hand. See [the maintainer release guide](https://github.com/ilyeshdz/yaplay/blob/master/RELEASING.md) for setup and recovery.

@@ -53,6 +53,7 @@ jobs:
     if: needs.release.outputs.release_created == 'true'
     permissions:
       contents: write
+      actions: write
     uses: ./.github/workflows/build.yml
     with:
       tag: ${{ needs.release.outputs.tag_name }}

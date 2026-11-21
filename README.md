@@ -46,7 +46,7 @@ npm run build
 
 The generated files are in `site/out/`. For a GitHub Pages project path, build with `NEXT_PUBLIC_BASE_PATH=/yaplay npm run build`. The Website workflow derives this path from the repository name, builds the site, and deploys `site/out/`. Select **GitHub Actions** in **Settings → Pages**, then run the workflow. The expected URL is `https://ilyeshdz.github.io/yaplay/` once deployed. For a custom domain at the root, set the repository variable `PAGES_BASE_PATH` to `/`.
 
-The build copies the wrapper into the static output for download. Run `npm run typecheck` inside `site/`, `node --test examples/yaplay-client.test.mjs` at the repository root, and `cargo test --locked` for Rust behavior.
+The build copies the wrapper into the static output for download. The `/releases/` page renders versioned Release Please entries from `CHANGELOG.md`. Download buttons detect the operating system and link directly to the latest GitHub release assets; Mac users can choose their chip. Run `npm test` and `npm run typecheck` inside `site/`, `node --test examples/yaplay-client.test.mjs` at the repository root, and `cargo test --locked` for Rust behavior.
 
 ## What it does
 

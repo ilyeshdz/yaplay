@@ -36,6 +36,10 @@ example wrapper ship from this repository but do not have independent versions.
 6. The same workflow calls **Release assets** to build Windows x86_64, macOS
    Apple Silicon, and macOS Intel packages from the resolved tag commit. It
    uploads assets and `SHA256SUMS` only after all three platform jobs succeed.
+7. Packaging explicitly dispatches **Website** on `master` to refresh the release
+   notes page, including when packaging is retried manually. The page reads
+   versioned entries from `CHANGELOG.md`; download buttons use GitHub’s
+   `releases/latest/download/<asset>` URLs. Keep asset names stable.
 
 The GitHub Release is visible before packaging finishes. Allow the release run
 to finish before announcing downloads. No desktop package is built on an

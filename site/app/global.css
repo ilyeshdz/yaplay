@@ -112,3 +112,20 @@ body { background: var(--yaplay-bg); color: var(--yaplay-text); }
   .home footer { flex-direction: column; align-items: flex-start; }
 }
 @media (max-width: 360px) { .home-nav { flex-wrap: wrap; gap: 14px; } .intro h1 { font-size: 2.75rem; } }
+
+.home-actions { align-items: flex-start; }
+.detected-download { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.chip-choice { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.chip-choice select { background: var(--yaplay-surface); color: var(--yaplay-text); border: 1px solid var(--yaplay-border); border-radius: 8px; padding: 7px; }
+.download-hint { font-size: 12px; color: var(--yaplay-muted); }
+.unsupported { border-color: var(--yaplay-border); background: var(--yaplay-surface); color: var(--yaplay-muted); }
+.release-page { max-width: 800px; padding-block: 64px; }
+.release-page h1 { font-size: clamp(40px, 7vw, 64px); line-height: 1.1; }
+.release-intro, .release-source { color: var(--yaplay-muted); line-height: 1.75; margin-top: 18px; }
+.release-index { display: flex; flex-wrap: wrap; gap: 12px 24px; margin-block: 28px; color: var(--yaplay-accent); }
+.release-entry { padding-block: 36px; border-top: 1px solid var(--yaplay-border); scroll-margin-top: 24px; }
+.release-entry header { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 24px; }
+.release-entry time { color: var(--yaplay-muted); font-size: 14px; }
+.release-badge { color: var(--yaplay-accent); background: var(--yaplay-surface); border: 1px solid var(--yaplay-border); border-radius: 20px; padding: 4px 10px; font-size: 12px; }
+.release-body { overflow-wrap: anywhere; margin-bottom: 24px; }
+@media (max-width: 640px) { .home-nav { flex-wrap: wrap; } .home-nav nav { flex-wrap: wrap; } }
