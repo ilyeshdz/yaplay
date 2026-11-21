@@ -32,12 +32,7 @@ pub fn voice_list(members: &[VoiceMember], mic_muted: bool, in_call: bool) -> im
         });
 
     if show {
-        panel = panel.child(
-            label()
-                .text("Voice")
-                .body()
-                .color(colors.text_secondary),
-        );
+        panel = panel.child(label().text("Voice").body().color(colors.text_secondary));
 
         let mut list = rect().vertical().spacing(6.0);
         for member in members {

@@ -3,7 +3,7 @@ use std::time::Duration;
 use async_io::Timer;
 use freya::prelude::*;
 
-use crate::state::{app_state, OverlaySnapshot};
+use crate::state::{OverlaySnapshot, app_state};
 
 use super::{notification_list::notification_list, voice_list::voice_list};
 
@@ -17,9 +17,7 @@ pub fn overlay() -> impl IntoElement {
             loop {
                 let next = {
                     let shared = app_state();
-                    let mut state = shared
-                        .write()
-                        .unwrap_or_else(|error| error.into_inner());
+                    let mut state = shared.write().unwrap_or_else(|error| error.into_inner());
                     state.prune_notifications();
                     state.snapshot()
                 };

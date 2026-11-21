@@ -59,7 +59,12 @@ fn app() -> impl IntoElement {
                         .vertical()
                         .spacing(8.0)
                         .child(label().text("Yaplay").title().theme_color())
-                        .child(label().text("Configure your experience").subtitle().theme_color()),
+                        .child(
+                            label()
+                                .text("Configure your experience")
+                                .subtitle()
+                                .theme_color(),
+                        ),
                 )
                 .child(config_list()),
         )

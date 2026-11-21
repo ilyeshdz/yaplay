@@ -148,9 +148,11 @@ mod tests {
 
     #[test]
     fn leaving_call_clears_roster_and_local_state() {
-        let mut state = AppState::default();
-        state.mic_muted = true;
-        state.deafened = true;
+        let mut state = AppState {
+            mic_muted: true,
+            deafened: true,
+            ..AppState::default()
+        };
         let member = VoiceMember {
             id: "self".into(),
             name: "You".into(),

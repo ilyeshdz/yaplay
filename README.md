@@ -51,10 +51,18 @@ cargo build --release --locked
 The binary is written to `target/release/`. The GitHub Actions workflow builds Windows and macOS releases:
 
 - Windows: `yaplay-windows-x86_64.exe`
-- macOS Apple Silicon: `Yaplay-macos-aarch64.dmg` and `Yaplay-macos-aarch64.app.zip`
-- macOS Intel: `Yaplay-macos-x86_64.dmg` and `Yaplay-macos-x86_64.app.zip`
+- macOS Apple Silicon: `Yaplay-aarch64-apple-darwin.dmg` and `Yaplay-aarch64-apple-darwin.app.zip`
+- macOS Intel: `Yaplay-x86_64-apple-darwin.dmg` and `Yaplay-x86_64-apple-darwin.app.zip`
 
-Pushing a tag like `v0.1.0` attaches these files to a GitHub Release. Open the DMG and drag Yaplay to Applications, or unzip the app bundle and run it directly.
+Release Please opens a release PR on `master` with the next version and a [changelog](CHANGELOG.md). Merging that PR creates the tag and GitHub Release, then builds and attaches these files. Desktop release packaging never runs on ordinary pushes or pull requests. Open the DMG and drag Yaplay to Applications, or unzip the app bundle and run it directly.
+
+## Release lifecycle and checks
+
+Use Conventional Commit PR titles (`feat:`, `fix:`, `docs:`, `ci:`, etc.) and squash-merge feature PRs. Release Please accumulates changes since the previous release, updates `Cargo.toml`, `Cargo.lock`, and `CHANGELOG.md` in one release PR, and publishes after that PR is merged. The initial release is `0.1.0`.
+
+Pull requests run formatting, JavaScript wrapper tests, workflow validation, and Rust Clippy/tests on one macOS runner when Rust files change. Website changes also run static export and TypeScript/link checks. They do not build the Windows/macOS release matrix or package installers.
+
+See [RELEASING.md](RELEASING.md) for repository setup, versioning rules, release review, and retrying failed packaging.
 
 ## Connecting a client
 

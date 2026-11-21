@@ -1,15 +1,22 @@
-name: Build
+name: Release assets
 
 on:
-  push:
-    branches: [main, master]
-    tags: ["v*"]
-  pull_request:
+  workflow_call:
+    inputs:
+      tag:
+        description: Existing release tag to package
+        required: true
+        type: string
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to rebuild (for example v0.1.0)
+        required: true
+        type: string
 
 concurrency:
-  group: build-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: release-assets-${{ inputs.tag }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -18,8 +25,31 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  verify:
+    name: Verify existing release
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.release.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Resolve the release tag
+        id: release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Expected vMAJOR.MINOR.PATCH"; exit 1; }
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json tagName
+          sha=$(git rev-parse --verify "refs/tags/$RELEASE_TAG^{commit}")
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
   build:
-    name: Build ${{ matrix.name }}
+    name: Package ${{ matrix.name }}
+    needs: verify
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -43,8 +73,10 @@ jobs:
             artifact: yaplay-macos-x86_64
 
     steps:
-      - name: Check out the repository
+      - name: Check out the release commit
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.verify.outputs.sha }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -55,6 +87,14 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
+
+      - name: Verify package version matches the release
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          VERSION=$(awk -F'"' '/^version = / { print $2; exit }' Cargo.toml)
+          [[ "v$VERSION" == "$RELEASE_TAG" ]] || { echo "Cargo version does not match release tag"; exit 1; }
 
       - name: Build release binary
         run: cargo build --release --locked --target ${{ matrix.target }}
@@ -73,9 +113,6 @@ jobs:
           set -euo pipefail
 
           VERSION=$(awk -F'"' '/^version = / { print $2; exit }' Cargo.toml)
-          if [[ "$GITHUB_REF_NAME" == v* ]]; then
-            VERSION="${GITHUB_REF_NAME#v}"
-          fi
 
           APP="dist/Yaplay.app"
           mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
@@ -132,26 +169,29 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: dist/*
+          path: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.app.zip
           if-no-files-found: error
 
-  release:
-    name: Publish GitHub release
-    if: startsWith(github.ref, 'refs/tags/')
+  upload:
+    name: Attach release assets
     needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
     steps:
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
-
-      - name: Create release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: dist/*
-          generate_release_notes: true
+      - name: Generate asset checksums
+        working-directory: dist
+        run: sha256sum ./*.exe ./*.dmg ./*.app.zip > SHA256SUMS
+      - name: Upload to the existing release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: gh release upload "$RELEASE_TAG" dist/* --repo "$GITHUB_REPOSITORY" --clobber

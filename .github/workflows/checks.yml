@@ -1,0 +1,94 @@
+name: Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: checks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      rust: ${{ steps.paths.outputs.rust }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: paths
+        with:
+          base: master
+          filters: |
+            rust:
+              - 'src/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - '.github/workflows/checks.yml'
+              - '.github/workflows/build.yml'
+
+  quality:
+    name: Formatting, wrapper tests, and workflow checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all --check
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test examples/yaplay-client.test.mjs
+      - name: Validate workflows
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.7 -color
+      - name: Validate conventional PR title
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          node --input-type=module -e '
+            const title = process.env.PR_TITLE;
+            if (!/^(feat|fix|perf|docs|refactor|test|build|ci|chore|style|revert)(\([^)]+\))?!?: .+/.test(title)) {
+              console.error("Use a Conventional Commit title, e.g. feat: add voice overlay");
+              process.exit(1);
+            }
+          '
+
+  rust:
+    name: Rust lint and tests
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
+    # One native runner for Freya's desktop dependencies; no release matrix.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo test --locked
+
+  required:
+    name: Required checks
+    if: always()
+    needs: [changes, quality, rust]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check results
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          QUALITY: ${{ needs.quality.result }}
+          RUST: ${{ needs.rust.result }}
+        run: |
+          [[ "$CHANGES" == success && "$QUALITY" == success ]]
+          [[ "$RUST" == success || "$RUST" == skipped ]]

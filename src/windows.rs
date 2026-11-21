@@ -1,9 +1,6 @@
 use display_info::DisplayInfo;
 use freya::prelude::*;
-use freya::winit::{
-    dpi::LogicalPosition,
-    window::WindowLevel,
-};
+use freya::winit::{dpi::LogicalPosition, window::WindowLevel};
 
 use crate::components::{controls::controls, overlay::overlay};
 
