@@ -20,11 +20,11 @@ pub fn voice_list(members: &[VoiceMember], mic_muted: bool, in_call: bool) -> im
             Gaps::new_all(0.0)
         })
         .background(if show {
-            Color::from_argb(215, 18, 18, 24)
+            crate::theme::OVERLAY_SURFACE
         } else {
             Color::TRANSPARENT
         })
-        .rounded_lg()
+        .corner_radius(12.0)
         .border(if show {
             Border::new().fill(colors.border).width(1.0)
         } else {

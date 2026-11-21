@@ -75,6 +75,11 @@ pub struct OverlaySnapshot {
 
 #[derive(Default)]
 pub struct AppState {
+    pub overlay_window: Option<freya::winit::window::WindowId>,
+    pub controls_window: Option<freya::winit::window::WindowId>,
+    pub settings_window: Option<freya::winit::window::WindowId>,
+    pub settings_open: bool,
+    pub startup_error: Option<String>,
     pub config: Configuration,
     pub in_call: bool,
     pub voice_members: Vec<VoiceMember>,

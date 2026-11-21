@@ -1,6 +1,22 @@
-# Yaplay
+<div align="center">
+  <img src="assets/branding/banner.svg" width="870" alt="Yaplay" />
+  <h1>Yaplay</h1>
+  <p>An unofficial overlay for Yapin. Keep your call activity and notifications above your windows.</p>
+  <p>
+    <a href="https://github.com/ilyeshdz/yaplay/releases"><img src="https://img.shields.io/github/v/release/ilyeshdz/yaplay?color=ffb49b" alt="Latest release" /></a>
+    <img src="https://img.shields.io/badge/Rust-Freya-ffb49b" alt="Built with Rust and Freya" />
+    <img src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows-ffb49b" alt="macOS and Windows" />
+  </p>
+  <p><a href="https://github.com/ilyeshdz/yaplay/releases">Download</a> · <a href="https://ilyeshdz.github.io/yaplay/">Website</a> · <a href="https://ilyeshdz.github.io/yaplay/docs/">Documentation</a></p>
+</div>
 
-**An unofficial overlay for Yapin.**
+## Getting started
+
+1. Download the build for your platform from [GitHub Releases](https://github.com/ilyeshdz/yaplay/releases).
+2. Open Yaplay and press **Start** to save your settings and start the overlay.
+3. Connect a compatible Yaplay integration from your modified Yapin client. Use **Cmd+Shift+Y** on macOS or **Ctrl+Shift+Y** on Windows to open the controls.
+
+## About Yaplay
 
 Yaplay shows your Yapin call roster, speaking activity, mute indicators, and notifications on top of your other windows. It is built in Rust with Freya.
 
@@ -34,7 +50,7 @@ The build copies the wrapper into the static output for download. Run `npm run t
 
 ## What it does
 
-Press Start in the settings window and Yaplay starts a local WebSocket server, closes the settings window, and opens a transparent overlay. The roster is in the top left and notifications are in the top right. The overlay is click through, so it does not block the windows below it.
+On first launch, press Start in the settings window to save your preferences. Future launches start the overlay automatically. Yaplay starts a local WebSocket server, closes the settings window, and opens a transparent overlay. The roster is in the top left and notifications are in the top right. The overlay is click through, so it does not block the windows below it. Open the control panel with Cmd+Shift+Y on macOS or Ctrl+Shift+Y on Windows, then use the settings icon to reopen settings. Save applies changes without restarting Yaplay.
 
 Press `Ctrl+Shift+Y` on Windows or `Cmd+Shift+Y` on macOS to show the control panel. It has mic, deafen, and exit buttons. These buttons only change what Yaplay displays. They do not send anything back to the connected client.
 
@@ -199,3 +215,9 @@ If the connection drops, reconnect and send the current roster again.
 - Multiple clients share one overlay; prefer one active state producer.
 - Browser connections may be restricted by mixed-content, CSP, or local-network policies. Prefer a desktop host bridge when needed.
 - The macOS app is not notarized. Allow it in System Settings if macOS blocks it.
+
+## Artwork
+
+The overlay mascot, peach palette, and Geist Pixel Square wordmark form Yaplay’s visual identity. The [banner](assets/branding/banner.svg), [logo](assets/branding/logo.svg), and [app icon](assets/branding/icon.svg) share the same vector artwork. See the [artwork guide](assets/branding/README.md) for exports and regeneration, and the [Geist font license](assets/branding/Geist-LICENSE.txt).
+
+<p align="center">Yaplay is an independent Yapin community project.</p>

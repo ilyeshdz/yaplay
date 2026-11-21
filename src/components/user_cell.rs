@@ -42,7 +42,7 @@ impl Component for UserCell {
                     } else {
                         Border::new()
                     })
-                    .child(label().text(initial).color(colors.text_inverse)),
+                    .child(label().text(initial).color(Color::WHITE)),
             )
             .child(label().text(name).color(if self.muted {
                 colors.text_secondary

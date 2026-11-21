@@ -1,5 +1,5 @@
 // Measurements and colors mirror src/components/{voice_list,user_cell,notification_list}.rs
-// and Freya 0.4.3 DARK_COLORS. This is illustrative content, not a live connection.
+// and src/theme.rs. This is illustrative content, not a live connection.
 export function OverlayPreview() {
   return (
     <figure className="overlay-example">

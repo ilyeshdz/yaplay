@@ -118,6 +118,7 @@ jobs:
           mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
           cp "target/${{ matrix.target }}/release/yaplay" "$APP/Contents/MacOS/yaplay"
           chmod +x "$APP/Contents/MacOS/yaplay"
+          cp assets/branding/icon.icns "$APP/Contents/Resources/Yaplay.icns"
 
           cat > "$APP/Contents/Info.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
@@ -136,6 +137,8 @@ jobs:
             <string>Yaplay</string>
             <key>CFBundleDisplayName</key>
             <string>Yaplay</string>
+            <key>CFBundleIconFile</key>
+            <string>Yaplay.icns</string>
             <key>CFBundlePackageType</key>
             <string>APPL</string>
             <key>CFBundleShortVersionString</key>

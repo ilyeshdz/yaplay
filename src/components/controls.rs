@@ -6,7 +6,7 @@ use freya::prelude::*;
 use crate::state::{OverlaySnapshot, app_state};
 
 pub fn controls() -> impl IntoElement {
-    use_init_theme(dark_theme);
+    use_init_theme(crate::theme::yaplay_theme);
 
     let theme = use_theme();
     let colors = theme.read().colors.clone();
@@ -15,6 +15,7 @@ pub fn controls() -> impl IntoElement {
 
     let platform = Platform::get();
     let quit_platform = platform.clone();
+    let settings_platform = platform.clone();
 
     use_hook(move || {
         spawn(async move {
@@ -65,6 +66,17 @@ pub fn controls() -> impl IntoElement {
         "Deafen"
     };
 
+    let mic_icon: &[u8] = if current.mic_muted {
+        include_bytes!("../assets/icons/microphone-off.svg")
+    } else {
+        include_bytes!("../assets/icons/microphone.svg")
+    };
+    let deafen_icon: &[u8] = if current.deafened {
+        include_bytes!("../assets/icons/headphones-off.svg")
+    } else {
+        include_bytes!("../assets/icons/headphones.svg")
+    };
+
     rect()
         .width(Size::fill())
         .height(Size::fill())
@@ -75,33 +87,94 @@ pub fn controls() -> impl IntoElement {
                 .spacing(10.0)
                 .cross_align(Alignment::Center)
                 .padding(Gaps::new_symmetric(12.0, 14.0))
-                .background(Color::from_argb(225, 24, 24, 30))
+                .background(crate::theme::OVERLAY_SURFACE)
                 .border(Border::new().fill(colors.border).width(1.0))
-                .rounded_full()
+                .corner_radius(12.0)
                 .child(
                     Button::new()
+                        .width(Size::px(42.0))
+                        .height(Size::px(42.0))
+                        .style_variant(if current.mic_muted {
+                            ButtonStyleVariant::Filled
+                        } else {
+                            ButtonStyleVariant::Normal
+                        })
                         .on_press(move |_| {
                             if let Ok(mut state) = app_state().write() {
                                 state.mic_muted = !state.mic_muted;
                             }
                         })
-                        .child(label().text(mic_label)),
+                        .child(control_content(mic_icon, mic_label, current.mic_muted)),
                 )
                 .child(
                     Button::new()
+                        .width(Size::px(42.0))
+                        .height(Size::px(42.0))
+                        .style_variant(if current.deafened {
+                            ButtonStyleVariant::Filled
+                        } else {
+                            ButtonStyleVariant::Normal
+                        })
                         .on_press(move |_| {
                             if let Ok(mut state) = app_state().write() {
                                 state.deafened = !state.deafened;
                             }
                         })
-                        .child(label().text(deafen_label)),
+                        .child(control_content(deafen_icon, deafen_label, current.deafened)),
                 )
                 .child(
                     Button::new()
+                        .width(Size::px(42.0))
+                        .height(Size::px(42.0))
+                        .on_press(move |_| {
+                            let shared = app_state();
+                            let mut state = shared.write().unwrap();
+                            if let Some(id) = state.settings_window {
+                                settings_platform.with_window(Some(id), |window| {
+                                    window.set_minimized(false);
+                                    window.focus_window();
+                                });
+                            } else if !state.settings_open {
+                                state.settings_open = true;
+                                let platform = settings_platform.clone();
+                                spawn(async move {
+                                    platform.launch_window(crate::settings_window()).await;
+                                });
+                            }
+                        })
+                        .child(control_content(
+                            include_bytes!("../assets/icons/settings.svg"),
+                            "Settings",
+                            false,
+                        )),
+                )
+                .child(
+                    Button::new()
+                        .width(Size::px(42.0))
+                        .height(Size::px(42.0))
                         .on_press(move |_| {
                             drop(quit_platform.post_callback(|_, context| context.exit()));
                         })
-                        .child(label().text("Exit")),
+                        .child(control_content(
+                            include_bytes!("../assets/icons/exit.svg"),
+                            "Exit",
+                            false,
+                        )),
                 ),
         )
+}
+
+/// Keep action names available to assistive technology without visible labels.
+fn control_content(icon: &'static [u8], text: &'static str, active: bool) -> impl IntoElement {
+    let color = if active {
+        crate::theme::BACKGROUND
+    } else {
+        crate::theme::TEXT
+    };
+    rect().center().a11y_alt(text).child(
+        SvgViewer::new(icon)
+            .width(Size::px(18.0))
+            .height(Size::px(18.0))
+            .color(color),
+    )
 }

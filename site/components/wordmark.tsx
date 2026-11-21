@@ -1,3 +1,5 @@
+import { brandAsset } from '@/lib/branding';
+
 export function Wordmark() {
-  return <span className="wordmark">yaplay<span className="wordmark-dot" aria-hidden="true">.</span></span>;
+  return <img className="wordmark" src={brandAsset('wordmark.svg')} width={172} height={40} alt="Yaplay" />;
 }
