@@ -4,7 +4,7 @@ import './global.css';
 
 export const metadata: Metadata = {
   title: { default: 'Yaplay', template: '%s — Yaplay' },
-  description: 'An independent desktop overlay for voice activity and notifications. Connect any application over a local WebSocket.',
+  description: 'A desktop overlay built for Yapin. See voice activity and notifications through client modifications such as Yapmod and Yap++.',
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {

@@ -1,12 +1,14 @@
 ---
-title: "Build a wrapper"
+title: "Build a Yapin integration"
 ---
+
+Implement the integration inside your Yapin client modification, such as a Yapmod or Yap++ plugin. Subscribe to the host’s Yapin call, speaking, mute, deafen, and notification events.
 
 The repository includes a <WrapperDownload /> (source: `examples/yaplay-client.mjs`). It retries connections, remembers the latest state, and replays that state after reconnecting. Notifications are sent only when connected and are not replayed.
 
-### A runnable Node.js example
+## Try the transport with Node.js
 
-Use a current Node.js LTS. Copy the wrapper next to a file called `demo.mjs`, install `ws`, then paste the following into that file:
+This standalone example verifies the connection to Yaplay with sample data before you wire it to Yapin. Use a current Node.js LTS. Copy the wrapper next to a file called `demo.mjs`, install `ws`, then paste the following into that file:
 
 ```sh
 npm install ws
@@ -40,10 +42,10 @@ process.on('SIGINT', () => {
 
 Start Yaplay and press Start before or after launching the example. The wrapper retries every 1.5 seconds while disconnected. `connect()` is idempotent; `disconnect()` cancels retries. Its methods return whether the message was sent immediately; state is still cached when the return value is false. This is not a delivery acknowledgement.
 
-### Map your app’s state
+## Map Yapin’s state from your client modification
 
 ```js
-// Adapt these fields to YOUR application's data model.
+// Adapt these fields to the Yapin state exposed by your client modification.
 function publishCall(call, currentUserId) {
   overlay.setRoster(call.members.map((member) => ({
     id: String(member.id),
@@ -62,4 +64,6 @@ function publishCall(call, currentUserId) {
 // overlay.notify('Call started', 'Your group is ready');
 ```
 
-These are mapping examples, not an existing Yapin or Yapmod plugin API. Use your host’s actual lifecycle and event methods. For Rust, Python, or another language, use any WebSocket client and send the JSON above; the JavaScript wrapper is optional.
+The field names and event handlers above are illustrative, not an existing Yapmod or Yap++ plugin API. Use the actual lifecycle and event methods of your chosen client modification, publish its current Yapin call state when the plugin enables, and unsubscribe on unload. This repository provides the transport wrapper, not a packaged plugin for either host.
+
+If your client modification uses Rust, Python, or another language, use its WebSocket client and send the same JSON; the JavaScript wrapper is optional. Follow the [plugin lifecycle guide](/docs/lifecycle) to handle reconnects and cleanup.

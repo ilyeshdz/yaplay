@@ -35,9 +35,10 @@ the previous release.
 
 ### Features
 
-- Independent Rust/Freya desktop overlay with a voice roster, speaking and mute
+- Rust/Freya desktop overlay built for Yapin with a voice roster, speaking and mute
   indicators, and temporary notifications.
-- Local WebSocket protocol for integrations from any application.
+- Local WebSocket protocol for integrations in Yapin client modifications,
+  including Yapmod and Yap++.
 - Display selection, notification preferences, a configurable port, and global
   shortcut controls.
 - Native macOS titlebar overlay in the settings window.

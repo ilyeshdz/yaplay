@@ -11,14 +11,14 @@ export default function Home() {
       </header>
       <main id="main">
         <section className="intro">
-          <h1>A desktop overlay for your app.</h1>
-          <p>See who’s talking and receive notifications above your windows. Connect any application with a plugin, a wrapper, or a local WebSocket.</p>
+          <h1>A desktop overlay for Yapin.</h1>
+          <p>See who’s talking on Yapin and receive notifications above your windows. Connect through a compatible integration in a Yapin client modification, such as Yapmod or Yap++.</p>
           <div className="home-actions"><a className="primary-link" href="#download">Download Yaplay</a><Link href="/docs">Integration guide</Link></div>
         </section>
         <OverlayPreview />
         <section className="downloads" id="download">
           <h2>Download</h2>
-          <p>Choose your build in GitHub Releases, open Yaplay, then press Start.</p>
+          <p>Choose your build in GitHub Releases, open Yaplay, then press Start. Enable the Yaplay integration in your modified Yapin client to display your call.</p>
           <div className="download-options">
             <a href={releases}>Windows <span>x86_64</span></a>
             <a href={releases}>macOS <span>Apple Silicon</span></a>
@@ -27,7 +27,7 @@ export default function Home() {
           <p className="small">macOS builds are not notarized. If a build isn’t available yet, <Link href="/docs/installation">build from source</Link>.</p>
         </section>
       </main>
-      <footer>Independent of any app or ecosystem. <Link href="/docs/integration">Build an integration.</Link></footer>
+      <footer>Built for Yapin. <Link href="/docs/integration">Build a client integration.</Link></footer>
     </div>
   );
 }

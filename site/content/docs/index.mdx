@@ -1,7 +1,19 @@
 ---
 title: "Overview"
+description: "A desktop overlay built for Yapin, connected through client modifications."
 ---
 
-Yaplay renders voice activity and notifications above desktop windows. Your application owns the call, audio, and users. An integration translates its events into JSON messages that Yaplay understands.
+Yaplay brings your Yapin call roster, speaking activity, mute indicators, and notifications above your desktop windows.
 
-This is an independent project: any application can become compatible through a plugin, a wrapper, or a direct connection. Yapmod and Yapin apps are possible consumers of the same public protocol; no Yapmod runtime is required.
+It works through **Yapin client modification software**, such as **Yapmod** or **Yap++**. An integration in the modified client listens to Yapin’s events and forwards the relevant state to Yaplay over a local WebSocket. Yapin owns the call and audio; Yaplay renders the overlay.
+
+## What connects to what?
+
+- **Yapin** provides the call, members, microphone state, and notifications.
+- **Yapmod, Yap++, or another Yapin client modification** provides the place to implement the integration, as a plugin or built-in feature.
+- **The Yaplay integration** translates the client’s events into the JSON protocol.
+- **Yaplay** runs locally and displays that information in its desktop overlay.
+
+The protocol and example wrapper are shared across integrations. Each client modification has its own event APIs and plugin lifecycle, so adapt the wrapper to the host you use. This repository does not ship a ready-to-install Yapmod or Yap++ plugin.
+
+Start with [installation](/docs/installation), then [build a Yapin integration](/docs/integration) using the [protocol reference](/docs/protocol).

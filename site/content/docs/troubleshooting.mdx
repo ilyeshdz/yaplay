@@ -12,3 +12,7 @@ title: "Troubleshooting"
 | Browser connection blocked | Check mixed-content, CSP connect-src, and local-network restrictions. Use your desktop host’s permitted bridge. |
 | Shortcut does nothing | Check for a shortcut conflict and inspect stderr for registration errors by launching from a terminal. |
 | Malformed messages ignored | Check required fields, booleans, RGB integer ranges, and exact type names. Run from a terminal to see errors. |
+
+## Yaplay opens, but Yapin does not appear
+
+Yaplay needs a compatible integration inside your Yapin client modification. Confirm that the integration is installed and enabled in Yapmod, Yap++, or your chosen host, and that it sends the current roster after connecting. Installing the overlay alone does not add that integration to the client.

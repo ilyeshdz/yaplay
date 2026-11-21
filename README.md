@@ -1,6 +1,10 @@
 # Yaplay
 
-Yaplay is a desktop overlay for voice calls. It shows a call roster and notifications on top of your other windows. It is built in Rust with Freya. Yaplay is independent of any particular application or ecosystem: any app can integrate through a plugin, wrapper, or direct WebSocket connection.
+Yaplay is a desktop overlay built for Yapin. It shows your Yapin call roster, speaking activity, mute indicators, and notifications on top of your other windows. It is built in Rust with Freya.
+
+Yaplay connects to Yapin through client modification software such as **Yapmod** or **Yap++**. A compatible integration in the modified client forwards Yapin’s call state and notifications to Yaplay over a local WebSocket. Yapin handles the call and audio; Yaplay displays the overlay.
+
+The integration can be a plugin, a wrapper, or a built-in feature of the client modification. This repository provides the overlay, the protocol, and an example wrapper for building that connection; it does not include a ready-to-install Yapmod or Yap++ plugin.
 
 ## Website and integration guide
 
@@ -64,9 +68,9 @@ Pull requests run formatting, JavaScript wrapper tests, workflow validation, and
 
 See [RELEASING.md](RELEASING.md) for repository setup, versioning rules, release review, and retrying failed packaging.
 
-## Connecting a client
+## Connecting your Yapin client
 
-Any program that can open a WebSocket can control the overlay. There is no required SDK or application-level handshake; an optional JavaScript wrapper is included. Connect to `ws://127.0.0.1:8080`, or whatever port you set in Yaplay, and send JSON text messages.
+Build the connection in your Yapin client modification (for example, a Yapmod or Yap++ plugin). Subscribe to Yapin’s call and notification events, translate them into the messages below, and send them to Yaplay. The transport is standard WebSocket; there is no required SDK or application-level handshake, and an optional JavaScript wrapper is included. Connect to `ws://127.0.0.1:8080`, or whatever port you set in Yaplay, and send JSON text messages.
 
 Each message has a `type` field. Multiple clients can connect at once. New `voice_state`, `mic_state`, and `deafen_state` messages replace the previous state. Notifications are added to a list (at most five) and disappear after about 8 seconds. Disabled notifications are discarded. Ending a call clears the roster and local mic/deafen state. Yaplay does not send replies.
 

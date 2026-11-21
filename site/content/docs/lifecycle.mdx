@@ -2,7 +2,9 @@
 title: "Wire a plugin lifecycle"
 ---
 
-1.  **Enable:** read your integration’s port setting, create one client, subscribe to host events, capture the current call/mic/deafen state, then connect.
+Use these lifecycle steps in your Yapin client modification’s plugin system, whether you are targeting Yapmod, Yap++, or another host. The exact hooks depend on the host.
+
+1.  **Enable:** read your integration’s port setting, create one client, subscribe to the host’s Yapin events, capture the current call/mic/deafen state, then connect.
 2.  **Update:** publish the full roster on relevant changes. Coalesce rapid speaking events instead of sending a message for every audio sample. Keep IDs stable and mark only the local member as `is_self`.
 3.  **Reconnect:** keep your cached state current while disconnected. Publish roster first, then mic and deafen. Do not replay historical notifications.
 4.  **Leave call:** send `in_call: false` with an empty roster. The provided wrapper also removes cached mic/deafen state.
@@ -17,4 +19,4 @@ A connection closing does not automatically clear the overlay because other clie
 *   Restart Yaplay during a call and verify the current state returns.
 *   Disable your plugin and verify it stops reconnecting.
 *   Try a custom port and disabled notifications.
-*   Verify actual microphone behavior in your host app; Yaplay is only the display.
+*   Verify actual microphone behavior in Yapin; Yaplay is only the display.
