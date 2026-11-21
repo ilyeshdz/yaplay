@@ -9,6 +9,13 @@
 
 - Connect overlay mute, deafen, and leave-call controls to integrations that negotiate the v1 control protocol. Display confirmed client state, disable unavailable controls, and clear the active client’s roster on disconnect.
 
+## [1.2.0](https://github.com/ilyeshdz/yaplay/compare/v1.1.0...v1.2.0) (2026-11-21)
+
+
+### Features
+
+* migrate desktop UI to GPUI ([#6](https://github.com/ilyeshdz/yaplay/issues/6)) ([a434d29](https://github.com/ilyeshdz/yaplay/commit/a434d294c1080db2fde779ccd689ae0d39d706b0))
+
 ## [1.1.0](https://github.com/ilyeshdz/yaplay/compare/v1.0.0...v1.1.0) (2026-11-21)
 
 
