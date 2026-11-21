@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.0](https://github.com/ilyeshdz/yaplay/compare/v1.0.0...v1.1.0) (2026-11-21)
+
+
+### Features
+
+* add Yaplay branding across app and website ([#4](https://github.com/ilyeshdz/yaplay/issues/4)) ([8b81764](https://github.com/ilyeshdz/yaplay/commit/8b8176470596ed3236a2a6dcd158a66aed852c0c))
+* redesign the Yaplay website with Geist Pixel ([#5](https://github.com/ilyeshdz/yaplay/issues/5)) ([092222c](https://github.com/ilyeshdz/yaplay/commit/092222c5e2f483f542f9af215c3ad4933b6e5bbd))
+
+
+### Documentation
+
+* align Yaplay branding with its unofficial Yapin overlay tagline ([706a19a](https://github.com/ilyeshdz/yaplay/commit/706a19a1e3f11029a54e45a4a88de5d8022015e3))
+* clarify Yapin integration through Yapmod and Yap++ ([71b9a1f](https://github.com/ilyeshdz/yaplay/commit/71b9a1f7a90daf88f2f265a70f9d831a18c7c8b3))
+
 ## 1.0.0 (2026-11-21)
 
 
