@@ -2,9 +2,9 @@
 
 ## Before the first release
 
-No version has been published yet. This section records the initial development
-baseline; the first Release Please PR will add the dated `1.0.0` entry above it.
-After that, each release PR collects the changes since the previous release.
+This section records the initial development baseline before release automation.
+Dated version entries appear above it. Each release PR collects changes since
+the previous release.
 
 ### Features
 

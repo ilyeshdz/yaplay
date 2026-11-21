@@ -46,11 +46,12 @@ Windows-specific compilation is checked at release time.
 
 ## Versioning and changelog
 
-There are no existing published releases. The empty manifest deliberately lets
-Release Please create the first `1.0.0` release from the repository's history.
-`Cargo.toml` currently contains development version `0.1.0`; the release PR will
-bump it and the lockfile to `1.0.0`. Do not prefill the
-manifest with `1.0.0`, which would imply it had already been released.
+The first stable release is explicitly selected with a one-time
+`Release-As: 1.0.0` commit footer. The Rust strategy defaults to `0.1.0` and does
+not honor `initial-version`; use `Release-As` for an intentional version override.
+The initially empty manifest lets Release Please collect the repository's full
+history. The release PR bumps `Cargo.toml`, `Cargo.lock`, and the manifest together.
+Do not prefill the manifest with a version that has not actually been released.
 
 After bootstrap:
 
