@@ -15,7 +15,7 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:3000`. Edit the homepage in `app/page.tsx` or the documentation in `content/docs/`. Fumadocs provides the sidebar, table of contents, code blocks, and page navigation. The homepage and documentation share a neutral dark theme.
+Open `http://localhost:3000`. Edit the homepage in `app/page.tsx` or the documentation in `content/docs/`. Fumadocs provides the sidebar, table of contents, code blocks, and page navigation. The homepage and documentation share Yaplay’s charcoal and peach palette, overlay mascot, and Geist Pixel Square wordmark.
 
 ## Static build
 
@@ -31,7 +31,11 @@ For a project hosted under a subdirectory, set the path at build time:
 NEXT_PUBLIC_BASE_PATH=/yaplay npm run build
 ```
 
-The base path applies to navigation, scripts, styles, and the wrapper download. Do not change it after building; rebuild when the deployment path changes.
+The base path applies to navigation, scripts, styles, branding images, favicons, and the wrapper download. Do not change it after building; rebuild when the deployment path changes.
+
+Artwork lives in `assets/branding/` at the repository root. Development and production builds copy the current exports into `public/branding/`. Update the source artwork and regenerate exports using the instructions in `assets/branding/README.md`; do not edit the generated public copies.
+
+For a custom domain, set `NEXT_PUBLIC_SITE_URL` to its origin (for example `https://example.com`) at build time so social preview images use the right domain.
 
 ## GitHub Pages
 
@@ -42,6 +46,6 @@ The base path applies to navigation, scripts, styles, and the wrapper download. 
 
 The workflow installs locked dependencies, tests the wrapper, builds the website, checks types and exported links, and deploys `site/out/`. Pull requests build and validate without publishing.
 
-For this repository the default project URL is `https://ilyeshdz.github.io/yaplay/`. The workflow derives the base path from the repository name. A repository named `username.github.io` uses the domain root. For a custom domain at the root, set the repository Actions variable `PAGES_BASE_PATH` to `/` and configure the domain in Pages settings.
+For this repository the default project URL is `https://ilyeshdz.github.io/yaplay/`. The workflow derives the base path from the repository name. A repository named `username.github.io` uses the domain root. For a custom domain at the root, set the repository Actions variable `PAGES_BASE_PATH` to `/`, set `PAGES_SITE_URL` to the domain origin, and configure the domain in Pages settings.
 
 Release downloads stay on GitHub Releases. Publishing the website does not publish a desktop release.

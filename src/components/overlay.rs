@@ -8,7 +8,7 @@ use crate::state::{OverlaySnapshot, app_state};
 use super::{notification_list::notification_list, voice_list::voice_list};
 
 pub fn overlay() -> impl IntoElement {
-    use_init_theme(dark_theme);
+    use_init_theme(crate::theme::yaplay_theme);
 
     let mut snapshot = use_state(OverlaySnapshot::default);
 

@@ -48,7 +48,7 @@ impl Monitor {
     }
 }
 
-pub const CONTROLS_WIDTH: f64 = 460.0;
+pub const CONTROLS_WIDTH: f64 = 226.0;
 pub const CONTROLS_HEIGHT: f64 = 76.0;
 
 pub fn overlay_window(monitor: Monitor) -> WindowConfig {
@@ -56,6 +56,9 @@ pub fn overlay_window(monitor: Monitor) -> WindowConfig {
 
     WindowConfig::new(overlay)
         .with_title("Yaplay Overlay")
+        .with_icon(LaunchConfig::window_icon(include_bytes!(
+            "../assets/branding/window-icon.png"
+        )))
         .with_size(monitor.width, monitor.height)
         .with_decorations(false)
         .with_resizable(false)
@@ -69,6 +72,7 @@ pub fn overlay_window(monitor: Monitor) -> WindowConfig {
         })
         .with_window_handle(|window| {
             let _ = window.set_cursor_hittest(false);
+            crate::state::app_state().write().unwrap().overlay_window = Some(window.id());
         })
         .with_on_close(|mut context, _| {
             context.exit();
@@ -81,6 +85,9 @@ pub fn controls_window(monitor: Monitor) -> WindowConfig {
 
     WindowConfig::new(controls)
         .with_title("Yaplay Controls")
+        .with_icon(LaunchConfig::window_icon(include_bytes!(
+            "../assets/branding/window-icon.png"
+        )))
         .with_size(CONTROLS_WIDTH, CONTROLS_HEIGHT)
         .with_decorations(false)
         .with_resizable(false)
@@ -93,6 +100,7 @@ pub fn controls_window(monitor: Monitor) -> WindowConfig {
         })
         .with_window_handle(|window| {
             let _ = window.set_cursor_hittest(false);
+            crate::state::app_state().write().unwrap().controls_window = Some(window.id());
         })
         .with_on_close(|_, _| CloseDecision::KeepOpen)
 }

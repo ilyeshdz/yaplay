@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { OverlayPreview } from '@/components/overlay-preview';
 import { Wordmark } from '@/components/wordmark';
-import { branding } from '@/lib/branding';
+import { branding, brandAsset } from '@/lib/branding';
 
 const releases = 'https://github.com/ilyeshdz/yaplay/releases';
 export default function Home() {
@@ -12,6 +12,7 @@ export default function Home() {
         <nav aria-label="Main navigation"><a href="#download">Download</a><Link href="/docs">Docs</Link><a href="https://github.com/ilyeshdz/yaplay">GitHub</a></nav>
       </header>
       <main id="main">
+        <div className="brand-banner"><img src={brandAsset('banner.svg')} width={870} height={351} alt="Yaplay — an unofficial overlay for Yapin" fetchPriority="high" /></div>
         <section className="intro">
           <h1>{branding.tagline}</h1>
           <p>See who’s talking on Yapin and receive notifications above your windows. Connect through a compatible integration in a Yapin client modification, such as Yapmod or Yap++.</p>

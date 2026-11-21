@@ -18,8 +18,8 @@ pub fn notification_list(notifications: &[Notification]) -> impl IntoElement {
                 .vertical()
                 .spacing(4.0)
                 .padding(Gaps::new_symmetric(12.0, 14.0))
-                .background(Color::from_argb(215, 18, 18, 24))
-                .rounded_lg()
+                .background(crate::theme::OVERLAY_SURFACE)
+                .corner_radius(12.0)
                 .border(Border::new().fill(colors.border).width(1.0))
                 .child(
                     label()

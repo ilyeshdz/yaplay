@@ -32,6 +32,8 @@ jobs:
               - 'src/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
+              - 'build.rs'
+              - 'assets/branding/**'
               - '.github/workflows/checks.yml'
               - '.github/workflows/build.yml'
 

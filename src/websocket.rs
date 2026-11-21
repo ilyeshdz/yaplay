@@ -1,4 +1,5 @@
-use std::sync::mpsc;
+use std::sync::{Mutex, mpsc};
+
 use std::thread;
 use std::time::Duration;
 
@@ -11,10 +12,23 @@ use tokio_tungstenite::{
 
 use crate::state::{ServerMessage, SharedState};
 
+struct Server {
+    port: u16,
+    shutdown: tokio::sync::oneshot::Sender<()>,
+    thread: thread::JoinHandle<()>,
+}
+
+static SERVER: Mutex<Option<Server>> = Mutex::new(None);
+
 pub fn start_server(port: u16, state: SharedState) -> Result<(), String> {
+    let mut server = SERVER.lock().unwrap();
+    if server.as_ref().is_some_and(|server| server.port == port) {
+        return Ok(());
+    }
+    let (shutdown, stopped) = tokio::sync::oneshot::channel();
     let (sender, receiver) = mpsc::channel();
 
-    thread::Builder::new()
+    let thread = thread::Builder::new()
         .name(format!("ws-server-{port}"))
         .spawn(move || {
             let runtime = match tokio::runtime::Builder::new_current_thread()
@@ -27,12 +41,28 @@ pub fn start_server(port: u16, state: SharedState) -> Result<(), String> {
                     return;
                 }
             };
-            runtime.block_on(server_loop(port, state, sender));
+            runtime.block_on(async move {
+                tokio::select! {
+                    _ = server_loop(port, state, sender) => {},
+                    _ = stopped => {},
+                }
+            });
         })
         .map_err(|err| format!("Failed to spawn the WebSocket server thread: {err}"))?;
 
     match receiver.recv_timeout(Duration::from_secs(3)) {
-        Ok(result) => result,
+        Ok(Ok(())) => {
+            if let Some(old) = server.replace(Server {
+                port,
+                shutdown,
+                thread,
+            }) {
+                let _ = old.shutdown.send(());
+                let _ = old.thread.join();
+            }
+            Ok(())
+        }
+        Ok(Err(error)) => Err(error),
         Err(_) => Err("Timed out while starting the WebSocket server".to_string()),
     }
 }
@@ -112,6 +142,27 @@ mod tests {
     use crate::state::AppState;
     use futures_util::SinkExt;
     use std::sync::{Arc, RwLock};
+
+    #[test]
+    fn server_reuses_port_and_keeps_existing_listener_on_failed_change() {
+        let state = Arc::new(RwLock::new(AppState::default()));
+        let unused = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = unused.local_addr().unwrap().port();
+        drop(unused);
+        start_server(port, state.clone()).unwrap();
+        start_server(port, state.clone()).unwrap();
+        let occupied = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        assert!(start_server(occupied.local_addr().unwrap().port(), state.clone()).is_err());
+        assert!(std::net::TcpStream::connect(("127.0.0.1", port)).is_ok());
+        let next = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let next_port = next.local_addr().unwrap().port();
+        drop(next);
+        start_server(next_port, state).unwrap();
+        assert!(std::net::TcpListener::bind(("127.0.0.1", port)).is_ok());
+        let server = SERVER.lock().unwrap().take().unwrap();
+        let _ = server.shutdown.send(());
+        server.thread.join().unwrap();
+    }
 
     #[tokio::test]
     async fn connection_ignores_invalid_messages_and_applies_valid_state() {

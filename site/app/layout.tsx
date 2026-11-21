@@ -1,11 +1,23 @@
 import type { Metadata } from 'next';
 import { RootProvider } from 'fumadocs-ui/provider/next';
 import './global.css';
-import { branding } from '@/lib/branding';
+import { branding, brandAsset } from '@/lib/branding';
 
 export const metadata: Metadata = {
   title: { default: `${branding.name} — ${branding.tagline}`, template: `%s — ${branding.name}` },
   description: branding.description,
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://ilyeshdz.github.io'),
+  icons: {
+    icon: [{ url: brandAsset('icon.svg'), type: 'image/svg+xml' }, { url: brandAsset('icon.ico'), sizes: 'any' }],
+    apple: [{ url: brandAsset('apple-touch-icon.png'), sizes: '180x180' }],
+  },
+  openGraph: {
+    title: branding.name,
+    description: branding.description,
+    type: 'website',
+    images: [{ url: brandAsset('banner.png'), width: 1740, height: 702, alt: 'Yaplay' }],
+  },
+  twitter: { card: 'summary_large_image', title: branding.name, description: branding.description, images: [brandAsset('banner.png')] },
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
