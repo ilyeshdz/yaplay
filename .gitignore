@@ -8,3 +8,5 @@
 /site/public/yaplay-client.mjs
 /site/public/.nojekyll
 /site/public/branding/
+
+__pycache__/

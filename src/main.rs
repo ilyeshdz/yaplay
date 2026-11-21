@@ -3,6 +3,7 @@ pub mod data;
 pub mod hotkey;
 pub mod state;
 pub mod theme;
+pub mod updater;
 pub mod websocket;
 pub mod windows;
 
@@ -16,7 +17,7 @@ fn main() {
         theme::init(cx);
         cx.on_action(|_: &OpenSettings, cx| windows::open_settings(cx));
         cx.on_action(|_: &ToggleControls, cx| windows::toggle_controls(cx));
-        cx.on_action(|_: &Quit, cx| cx.quit());
+        cx.on_action(|_: &Quit, cx| updater::quit(cx));
         cx.bind_keys([
             KeyBinding::new(
                 if cfg!(target_os = "macos") {
@@ -62,7 +63,7 @@ fn main() {
         }
         cx.on_window_closed(|cx| {
             if cx.windows().is_empty() {
-                cx.quit();
+                updater::quit(cx);
             }
         })
         .detach();
@@ -77,6 +78,7 @@ fn main() {
                 }
             }
         });
+        updater::init(cx);
         if !started {
             windows::open_settings(cx);
         }

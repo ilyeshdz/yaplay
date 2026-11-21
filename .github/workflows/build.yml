@@ -2,6 +2,10 @@ name: Release assets
 
 on:
   workflow_call:
+    secrets:
+      UPDATER_SIGNING_KEY:
+        description: Minisign secret key contents for release packages
+        required: true
     inputs:
       tag:
         description: Existing release tag to package
@@ -34,6 +38,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Verify updater signing configuration
+        env:
+          UPDATE_PUBLIC_KEY: ${{ vars.YAPLAY_UPDATE_PUBLIC_KEY }}
+          UPDATE_SECRET_KEY: ${{ secrets.UPDATER_SIGNING_KEY }}
+        run: |
+          test -n "$UPDATE_PUBLIC_KEY" || { echo "Set YAPLAY_UPDATE_PUBLIC_KEY repository variable"; exit 1; }
+          test -n "$UPDATE_SECRET_KEY" || { echo "Set UPDATER_SIGNING_KEY repository secret"; exit 1; }
       - name: Resolve the release tag
         id: release
         shell: bash
@@ -92,6 +103,8 @@ jobs:
           [[ "v$VERSION" == "$RELEASE_TAG" ]] || { echo "Cargo version does not match release tag"; exit 1; }
 
       - name: Build release binary
+        env:
+          YAPLAY_UPDATE_PUBLIC_KEY: ${{ vars.YAPLAY_UPDATE_PUBLIC_KEY }}
         run: cargo build --release --locked --target ${{ matrix.target }}
 
       - name: Package Windows executable
@@ -173,27 +186,62 @@ jobs:
             dist/*.app.zip
           if-no-files-found: error
 
+  sign:
+    name: Sign release assets
+    needs: [verify, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.verify.outputs.sha }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: updater-release-tool
+      - name: Install pinned update signing tool
+        run: cargo install gpui-updater-release --version 0.4.4 --features cli --locked
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: yaplay-*
+          path: dist
+          merge-multiple: true
+      - name: Sign update packages
+        env:
+          MINISIGN_SECRET_KEY: ${{ secrets.UPDATER_SIGNING_KEY }}
+          MINISIGN_PUBLIC_KEY: ${{ vars.YAPLAY_UPDATE_PUBLIC_KEY }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: gpui-updater-release sign minisign --version "$RELEASE_TAG" dist/*.exe dist/*.dmg
+      - name: Generate asset checksums
+        working-directory: dist
+        run: sha256sum ./*.exe ./*.dmg ./*.app.zip > SHA256SUMS
+      - name: Preserve signed assets for upload retries
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-release
+          path: dist/*
+          if-no-files-found: error
+
   upload:
     name: Attach release assets
-    needs: build
+    needs: [verify, sign]
     runs-on: ubuntu-latest
     permissions:
       contents: write
       actions: write
     steps:
-      - name: Download all build artifacts
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
         with:
+          ref: ${{ needs.verify.outputs.sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: signed-release
           path: dist
-          merge-multiple: true
-      - name: Generate asset checksums
-        working-directory: dist
-        run: sha256sum ./*.exe ./*.dmg ./*.app.zip > SHA256SUMS
       - name: Upload to the existing release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag }}
-        run: gh release upload "$RELEASE_TAG" dist/* --repo "$GITHUB_REPOSITORY" --clobber
+        run: python3 scripts/publish-release.py --tag "$RELEASE_TAG" --dist dist --repo "$GITHUB_REPOSITORY"
       # Token-created releases do not trigger other workflows automatically.
       - name: Refresh release notes website
         env:

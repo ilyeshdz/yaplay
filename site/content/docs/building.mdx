@@ -3,7 +3,7 @@ title: "Build from source"
 description: "For developers working on Yaplay."
 ---
 
-Use macOS or Windows with a current stable Rust toolchain (Rust 1.85 or later). Windows needs C++ Build Tools and the Windows SDK. macOS needs Xcode Command Line Tools.
+Use macOS or Windows with a current stable Rust toolchain (Rust 1.98 or later). Windows needs C++ Build Tools and the Windows SDK. macOS needs Xcode Command Line Tools.
 
 ```sh
 git clone https://github.com/ilyeshdz/yaplay.git
@@ -17,4 +17,53 @@ The executable is in `target/release/`. Follow [installation](/docs/installation
 
 Release Please manages versions, the changelog, tags, and GitHub release notes. Merge Conventional Commit changes into `master`, then review and merge the generated release PR. GitHub Actions packages Windows and macOS downloads and refreshes this website.
 
-Do not create release tags or edit version numbers by hand. If packaging fails after a release is published, rerun the **Release assets** workflow with the existing release tag.
+Do not create release tags or edit version numbers by hand. If packaging fails before uploading, rerun **Release assets** with the existing tag. If uploading fails, rerun only the failed upload job to reuse the original signed artifacts. Published assets are immutable; a changed rebuild requires a new release version.
+
+## Update signing
+
+The application uses pinned `gpui-updater` 0.4.4 with strict SHA-256 and minisign
+verification and required signed version binding. Its native backends install
+our existing DMG and portable EXE formats. No custom updater executable, feed
+server, or Sparkle framework is needed. Rust 1.98 or newer is required by the GPUI
+adapter.
+
+Before the first release with updates, create a dedicated release key on a trusted
+machine (keep a secure backup):
+
+```sh
+cargo install gpui-updater-release --version 0.4.4 --features cli --locked
+umask 077
+gpui-updater-release keys generate-minisign --out /secure/location/yaplay-updater
+```
+
+Set repository variable **YAPLAY_UPDATE_PUBLIC_KEY** to the public key base64 line printed
+by the command and repository Actions secret **UPDATER_SIGNING_KEY** to the full
+secret-key file contents. The tool generates an unencrypted signing key for CI;
+protect it like a release credential and never commit it. The reusable release
+workflow explicitly receives the secret. Signing verifies that the secret matches
+the public key and fails if they differ.
+
+The public key is embedded at build time using `YAPLAY_UPDATE_PUBLIC_KEY`; it
+cannot be changed by a downloaded release. Local builds without it remain usable
+and provide manual downloads. Debug builds disable the updater even if a key is
+set. A release workflow refuses to package without signing configuration.
+
+Release assets retain their current names. Each DMG and EXE gets a `.minisig`
+sidecar whose trusted comment binds its release version. SHA256SUMS is published
+last so a partially uploaded release cannot pass strict verification. The GitHub
+release can appear earlier; checks may report an update error until packaging
+finishes and will retry on the next scheduled or manual check.
+
+Key rotation requires first shipping a client that trusts both the old and new
+public keys, signed with the old key, before switching release signing to the
+new key. Do not simply replace the repository variable: existing clients still
+trust the old key. Apple notarization and Windows Authenticode are separate from
+update signatures and are not enabled by this change.
+
+The library validates downloads and handles normal replacement failures. It does
+not retain a health-checked rollback version after successful installation or
+provide power-loss recovery. Before rollout, exercise a signed upgrade between
+two test versions on macOS Apple Silicon and Windows, including a renamed
+EXE, spaces in paths, an unwritable location, cancellation, and a failed download.
+Use isolated test keys and installations; never replace production assets for
+this test. The first updater-enabled build still requires a manual installation.

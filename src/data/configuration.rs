@@ -7,6 +7,7 @@ pub struct Configuration {
     pub appearance: super::appearance::Appearance,
     pub selected_monitor_id: u32,
     pub notifications_enabled: bool,
+    pub automatic_update_checks: bool,
     pub websocket_port: u16,
 }
 
@@ -16,13 +17,14 @@ impl Default for Configuration {
             appearance: Default::default(),
             selected_monitor_id: 0,
             notifications_enabled: true,
+            automatic_update_checks: true,
             websocket_port: 8080,
         }
     }
 }
 
 impl Configuration {
-    fn path() -> io::Result<PathBuf> {
+    pub(crate) fn path() -> io::Result<PathBuf> {
         let base = if cfg!(target_os = "windows") {
             std::env::var_os("APPDATA").map(PathBuf::from)
         } else if cfg!(target_os = "macos") {

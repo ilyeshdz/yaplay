@@ -1,4 +1,5 @@
 fn main() {
+    println!("cargo:rerun-if-env-changed=YAPLAY_UPDATE_PUBLIC_KEY");
     println!("cargo:rerun-if-changed=assets/branding/icon.ico");
     #[cfg(windows)]
     winresource::WindowsResource::new()

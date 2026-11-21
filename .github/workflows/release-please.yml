@@ -55,5 +55,7 @@ jobs:
       contents: write
       actions: write
     uses: ./.github/workflows/build.yml
+    secrets:
+      UPDATER_SIGNING_KEY: ${{ secrets.UPDATER_SIGNING_KEY }}
     with:
       tag: ${{ needs.release.outputs.tag_name }}
