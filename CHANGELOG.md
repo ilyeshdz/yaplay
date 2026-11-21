@@ -1,3 +1,30 @@
+# Changelog
+
+## 1.0.0 (2026-11-21)
+
+
+### Features
+
+* add integration website and automated releases ([#1](https://github.com/ilyeshdz/yaplay/issues/1)) ([d61f4f2](https://github.com/ilyeshdz/yaplay/commit/d61f4f2cc9cec98573fd8057a1a8c4f74a1d3570))
+* basic working ([18ba726](https://github.com/ilyeshdz/yaplay/commit/18ba7265ca4a03f5fbba9bba55f2174e2ab1707b))
+* working on the overlay ([03656dc](https://github.com/ilyeshdz/yaplay/commit/03656dcafb24fdaad8118f2102e09c8986886d9b))
+
+
+### Bug fixes
+
+* keep global hotkey manager alive ([eabcc5f](https://github.com/ilyeshdz/yaplay/commit/eabcc5fa50ec5b1e313fff36399562e4ab37fade))
+
+
+### Automation
+
+* add cross-platform release packaging ([9cbcdbf](https://github.com/ilyeshdz/yaplay/commit/9cbcdbfbb86b4bcaa8d42abd6093b74f1eb81d50))
+
+
+### Maintenance
+
+* initial commit ([d724cbd](https://github.com/ilyeshdz/yaplay/commit/d724cbda5d53a603d7f698937d78ca14e7452e17))
+* prepare first stable release ([a37e91e](https://github.com/ilyeshdz/yaplay/commit/a37e91e193cd3b8386dd0e2951849050193140c2))
+
 <!-- Release Please adds dated version entries above this initial development record. -->
 
 ## Before the first release
