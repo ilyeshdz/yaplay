@@ -54,6 +54,8 @@ On first launch, press Start in the settings window to save your preferences. Fu
 
 Press `Ctrl+Shift+Y` on Windows or `Cmd+Shift+Y` on macOS to show the control panel. It has mute, deafen, leave-call, settings, and exit icons. With a control-capable integration, the mic, deafen, and leave-call buttons send requests to Yapin. The overlay updates when the client reports the resulting state. Call controls are disabled without a negotiated client. Exit still closes Yaplay.
 
+To launch Yaplay when you sign in, enable **Start Yaplay when I sign in** in settings. This is off by default and applies immediately for your user account; turn it off in the same place. Install Yaplay in a permanent location first (Applications on macOS). If you move it, turn the option off and on from the new location. The setting uses a macOS LaunchAgent or a Windows startup entry, and is read from the operating system whenever settings open. Disable it before deleting Yaplay.
+
 Settings include compact rows, scale, panel width, screen corner and margin, colors, opacity, rounded corners, avatar/name visibility, and a visible-member limit. Large calls prioritize speakers and show a `+N more` count within the screen bounds.
 
 Yaplay listens on `127.0.0.1:<port>`. The default port is `8080`.
