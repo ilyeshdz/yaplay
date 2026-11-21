@@ -1,7 +1,10 @@
 import type { Metadata } from 'next';
+import localFont from 'next/font/local';
 import { RootProvider } from 'fumadocs-ui/provider/next';
 import './global.css';
 import { branding, brandAsset } from '@/lib/branding';
+
+const geistPixel = localFont({ src: '../fonts/GeistPixel-Square.ttf', variable: '--font-geist-pixel', display: 'swap', weight: '400' });
 
 export const metadata: Metadata = {
   title: { default: `${branding.name} — ${branding.tagline}`, template: `%s — ${branding.name}` },
@@ -22,7 +25,7 @@ export const metadata: Metadata = {
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" className={`dark ${geistPixel.variable}`} suppressHydrationWarning>
       <body>
         <RootProvider search={{ enabled: false }} theme={{ forcedTheme: 'dark' }}>
           {children}
