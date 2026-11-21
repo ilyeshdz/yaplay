@@ -35,14 +35,16 @@ example wrapper ship from this repository but do not have independent versions.
    Release using the changelog as release notes.
 6. The same workflow calls **Release assets** to build Windows x86_64, macOS
    Apple Silicon, and macOS Intel packages from the resolved tag commit. It
-   uploads assets and `SHA256SUMS` only after all three platform jobs succeed.
+   signs the DMGs and Windows executable, then uploads packages, signatures,
+   and finally `SHA256SUMS` after all three platform jobs succeed.
 
 The GitHub Release is visible before packaging finishes. Allow the release run
-to finish before announcing downloads. No desktop package is built on an
-ordinary PR or push; a single native macOS runner performs debug lint/tests for
-Rust changes because the GUI depends on native libraries. These checks still
-compile dependencies, but do not produce optimized release binaries or installers.
-Windows-specific compilation is checked at release time.
+to finish before announcing downloads. No desktop release package is built on an
+ordinary PR or push; native macOS and Windows runners perform debug lint/tests for
+Rust changes because the GUI and installer depend on native libraries. These checks still
+compile dependencies and exercise temporary installer fixtures, but do not produce
+optimized release binaries or distributable installers.
+Both updater backends compile in pull-request checks.
 
 ## Versioning and changelog
 
@@ -90,16 +92,70 @@ This avoids an extra PAT and avoids missing CI on bot PRs.
   branch.
 - **Release Please failed before publishing:** rerun its failed job, or dispatch
   **Release Please** on `master`. It reconciles existing release PRs and tags.
-- **Packaging/upload failed after publishing:** dispatch **Release assets** with
-  the existing tag (for example `v1.0.0`). Do not rerun only Release Please and
-  expect `release_created` to become true again.
+- **Packaging failed before uploading:** dispatch **Release assets** with the
+  existing tag. Do not rerun only Release Please and expect `release_created`
+  to become true again.
+- **Upload failed:** rerun the failed upload job using the original build
+  artifacts. Identical uploaded files are skipped; missing files are uploaded.
+  A full rebuild may produce different bytes and will be rejected. Publish a new
+  version if the original artifacts are no longer available. Never delete or
+  replace files referenced by a published updater release.
 - The packaging workflow rejects missing releases and tags whose version differs
   from `Cargo.toml`. It checks out the tag's immutable commit rather than the
-  branch selected for manual dispatch, and replaces existing assets on retry
-  without changing the changelog, release notes, or tag.
+  branch selected for manual dispatch. Published assets are immutable: retries
+  compare existing files before uploading anything and reject changed bytes.
 - An arbitrary pushed tag does not publish or package anything. Use the release
   PR flow. The manual workflow is for existing releases, not a shortcut for
   creating releases.
+
+## Update signing
+
+The application uses pinned `gpui-updater` 0.4.4 with strict SHA-256 and minisign
+verification and required signed version binding. Its native backends install
+our existing DMG and portable EXE formats. No custom updater executable, feed
+server, or Sparkle framework is needed. Rust 1.98 or newer is required by the GPUI
+adapter.
+
+Before the first release with updates, create a dedicated release key on a trusted
+machine (keep a secure backup):
+
+```sh
+cargo install gpui-updater-release --version 0.4.4 --features cli --locked
+umask 077
+gpui-updater-release keys generate-minisign --out /secure/location/yaplay-updater
+```
+
+Set repository variable **YAPLAY_UPDATE_PUBLIC_KEY** to the public key base64 line printed
+by the command and repository Actions secret **UPDATER_SIGNING_KEY** to the full
+secret-key file contents. The tool generates an unencrypted signing key for CI;
+protect it like a release credential and never commit it. The reusable release
+workflow explicitly receives the secret. Signing verifies that the secret matches
+the public key and fails if they differ.
+
+The public key is embedded at build time using `YAPLAY_UPDATE_PUBLIC_KEY`; it
+cannot be changed by a downloaded release. Local builds without it remain usable
+and provide manual downloads. Debug builds disable the updater even if a key is
+set. A release workflow refuses to package without signing configuration.
+
+Release assets retain their current names. Each DMG and EXE gets a `.minisig`
+sidecar whose trusted comment binds its release version. SHA256SUMS is published
+last so a partially uploaded release cannot pass strict verification. The GitHub
+release can appear earlier; checks may report an update error until packaging
+finishes and will retry on the next scheduled or manual check.
+
+Key rotation requires first shipping a client that trusts both the old and new
+public keys, signed with the old key, before switching release signing to the
+new key. Do not simply replace the repository variable: existing clients still
+trust the old key. Apple notarization and Windows Authenticode are separate from
+update signatures and are not enabled by this change.
+
+The library validates downloads and handles normal replacement failures. It does
+not retain a health-checked rollback version after successful installation or
+provide power-loss recovery. Before rollout, exercise a signed upgrade between
+two test versions on macOS Intel/Apple Silicon and Windows, including a renamed
+EXE, spaces in paths, an unwritable location, cancellation, and a failed download.
+Use isolated test keys and installations; never replace production assets for
+this test. The first updater-enabled build still requires a manual installation.
 
 ## Local validation
 
@@ -108,6 +164,7 @@ cargo fmt --all --check
 cargo clippy --all-targets --locked -- -D warnings
 cargo test --locked
 node --test examples/yaplay-client.test.mjs
+python3 -m unittest discover -s scripts -p 'test_*.py'
 ```
 
 For website changes, run the commands documented in `README.md`. Workflow syntax

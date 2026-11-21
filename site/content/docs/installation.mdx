@@ -10,9 +10,22 @@ title: "Install and start"
 
 On Apple Silicon, choose `aarch64-apple-darwin`; on Intel Macs, choose `x86_64-apple-darwin`. macOS builds are not notarized. If macOS blocks a trusted build, review it in System Settings Privacy & Security.
 
+### Updates
+
+Official builds check GitHub for stable updates after startup and every six hours.
+Open Settings and choose **Download and install**, then **Restart Yaplay**.
+Downloads are signature-verified. Yaplay never restarts automatically; finish your
+call before installing or restarting. Keep it open while installation runs.
+
+To disable background checks, turn off **Automatically check for updates** in
+Settings and press **Save**. You can still check manually. The installation must
+be writable; move the macOS app out of its DMG before updating. Development builds
+and builds without a verification key provide a manual download link. Older
+versions without the updater need one manual upgrade.
+
 ### Build from source
 
-Install a current stable Rust toolchain (edition 2024 requires Rust 1.85 or later). Windows also needs C++ Build Tools and the Windows SDK; macOS needs Xcode Command Line Tools. Windows and macOS are the release targets; no Linux release is currently provided.
+Install a current stable Rust toolchain (Yaplay requires Rust 1.98 or later). Windows also needs C++ Build Tools and the Windows SDK; macOS needs Xcode Command Line Tools. Windows and macOS are the release targets; no Linux release is currently provided.
 
 ```sh
 git clone https://github.com/ilyeshdz/yaplay.git

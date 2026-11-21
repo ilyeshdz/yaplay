@@ -101,14 +101,19 @@ impl Render for Controls {
                     .child(
                         control_button("settings", cx)
                             .icon(Icon::default().path("icons/settings.svg"))
-                            .tooltip("Settings")
+                            .tooltip(if crate::updater::has_update(cx) {
+                                "Update available · Settings"
+                            } else {
+                                "Settings"
+                            })
+                            .when(crate::updater::has_update(cx), |b| b.primary())
                             .on_click(|_, _, cx| cx.defer(crate::windows::open_settings)),
                     )
                     .child(
                         control_button("exit", cx)
                             .icon(Icon::default().path("icons/exit.svg"))
                             .tooltip("Exit Yaplay")
-                            .on_click(|_, _, cx| cx.quit()),
+                            .on_click(|_, _, cx| crate::updater::quit(cx)),
                     ),
             )
     }

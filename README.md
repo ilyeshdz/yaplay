@@ -58,9 +58,32 @@ Settings include compact rows, scale, panel width, screen corner and margin, col
 
 Yaplay listens on `127.0.0.1:<port>`. The default port is `8080`.
 
+## Updates
+
+Official builds check GitHub for stable updates shortly after startup and every
+six hours. Open Settings to see the version and check manually. The settings
+icon is highlighted when an update is available. Choose **Download and install**,
+then **Restart Yaplay** when ready. Yaplay never downloads or restarts without
+an action, and installation/restart buttons are disabled during a call.
+
+Turn off **Automatically check for updates** and press **Save** to disable
+background checks. Downloads require a SHA-256 checksum and a version-bound
+minisign signature. Keep the app open while installation is in progress.
+
+Updates use [gpui-updater](https://github.com/AprilNEA/gpui-updater): macOS replaces
+the complete app from the DMG; Windows replaces the portable executable while
+preserving its filename. The installation must be writable. Move the macOS app
+out of its DMG before updating. Development builds and builds without the release
+verification key offer manual downloads instead. Existing releases without this
+feature must be updated manually once.
+
+See [RELEASING.md](RELEASING.md#update-signing) for the signing setup required
+before publishing updater-enabled builds. Replacement errors are handled by the
+library; recovery after power loss or a crash in the new version is not automatic.
+
 ## Build
 
-You need Rust 1.85 or newer. On Windows you also need the C++ Build Tools with the Windows SDK. On macOS you need the Xcode Command Line Tools.
+You need Rust 1.98 or newer. On Windows you also need the C++ Build Tools with the Windows SDK. On macOS you need the Xcode Command Line Tools.
 
 ```sh
 cargo run --release
@@ -84,7 +107,7 @@ Release Please opens a release PR on `master` with the next version and a [chang
 
 Use Conventional Commit PR titles (`feat:`, `fix:`, `docs:`, `ci:`, etc.) and squash-merge feature PRs. Release Please accumulates changes since the previous release, updates `Cargo.toml`, `Cargo.lock`, and `CHANGELOG.md` in one release PR, and publishes after that PR is merged. The initial release is `1.0.0`.
 
-Pull requests run formatting, JavaScript wrapper tests, workflow validation, and Rust Clippy/tests on one macOS runner when Rust files change. Website changes also run static export and TypeScript/link checks. They do not build the Windows/macOS release matrix or package installers.
+Pull requests run formatting, JavaScript wrapper tests, workflow validation, and Rust Clippy/tests on macOS and Windows runners when Rust files change. Website changes also run static export and TypeScript/link checks. They do not build the Windows/macOS release matrix or package installers.
 
 See [RELEASING.md](RELEASING.md) for repository setup, versioning rules, release review, and retrying failed packaging.
 

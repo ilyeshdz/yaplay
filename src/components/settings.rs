@@ -253,6 +253,22 @@ impl Render for Settings {
             .p(px(20.0))
             .bg(rgb(theme::SURFACE))
             .rounded(px(12.0))
+            .child(crate::updater::panel(cx))
+            .child(
+                Switch::new("automatic-update-checks")
+                    .label("Automatically check for updates")
+                    .checked(self.config.automatic_update_checks)
+                    .on_click(cx.listener(|this, value, _, cx| {
+                        this.config.automatic_update_checks = *value;
+                        cx.notify();
+                    })),
+            )
+            .child(
+                div()
+                    .text_sm()
+                    .text_color(rgb(theme::MUTED))
+                    .child("Press Save or Start to apply this preference."),
+            )
             .child(div().text_lg().child("Overlay settings"));
         form = form.child(
             div().flex().flex_col().gap_2().child("Display").child(
