@@ -1,19 +1,27 @@
 ---
-title: "Overview"
-description: "An unofficial overlay for Yapin."
+title: "Get started"
+description: "Your Yapin call, above your other windows."
 ---
 
-Yaplay brings your Yapin call roster, speaking activity, mute indicators, and notifications above your desktop windows.
+Yaplay shows who’s talking, who’s muted, and call notifications in a small desktop overlay. It supports **Windows and macOS**. Linux is not supported yet.
 
-It works through **Yapin client modification software**, such as **Yapmod** or **Yap++**. An integration in the modified client listens to Yapin’s events and forwards the relevant state to Yaplay over a local WebSocket. Yapin owns the call and audio; Yaplay renders the overlay.
+## Set up in three steps
 
-## What connects to what?
+1. [Download Yaplay](/#download) for your computer.
+2. Open it and press **Start**.
+3. Enable a compatible Yaplay integration in your modified Yapin client.
 
-- **Yapin** provides the call, members, microphone state, and notifications.
-- **Yapmod, Yap++, or another Yapin client modification** provides the place to implement the integration, as a plugin or built-in feature.
-- **The Yaplay integration** translates the client’s events into the JSON protocol.
-- **Yaplay** runs locally and displays that information in its desktop overlay.
+**You need an integration.** Yaplay does not connect to Yapin by itself. This repository does not include a ready-to-install Yapmod or Yap++ plugin. Check whether your client has a compatible integration before installing.
 
-The protocol and example wrapper are shared across integrations. Each client modification has its own event APIs and plugin lifecycle, so adapt the wrapper to the host you use. This repository does not ship a ready-to-install Yapmod or Yap++ plugin.
+## Everyday use
 
-Start with [installation](/docs/installation), then [build a Yapin integration](/docs/integration) using the [protocol reference](/docs/protocol).
+Press **Ctrl+Shift+Y** on Windows or **Cmd+Shift+Y** on macOS to open the controls. Use the gear to change settings, or the exit icon to close Yaplay.
+
+- [Installation](/docs/installation): download, open, and connect.
+- [Appearance](/docs/appearance): change the size, colors, and position.
+- [Troubleshooting](/docs/troubleshooting): fix a missing overlay or connection.
+- [Release notes](/releases): see what’s new.
+
+## For developers
+
+Building a client integration? Start with the [integration guide](/docs/integration). The [protocol reference](/docs/protocol) has the full message format.

@@ -1,18 +1,38 @@
 ---
 title: "Troubleshooting"
+description: "A few things to check if Yaplay isn’t working."
 ---
 
-| Symptom | What to check |
-| --- | --- |
-| Connection refused | Press Start in Yaplay, confirm both ports match, and use 127.0.0.1 rather than a remote address. |
-| Port already in use | Choose another port in Yaplay and your integration, or close the other instance. |
-| No roster | Send a valid voice\_state with in\_call true and a nonempty members array. Check the selected display. |
-| No notification | Enable notifications before Start and send while connected. They disappear after eight seconds. |
-| State flickers or changes unexpectedly | Check for multiple producers. All clients share the same state. |
-| Browser connection blocked | Check mixed-content, CSP connect-src, and local-network restrictions. Use your desktop host’s permitted bridge. |
-| Shortcut does nothing | Check for a shortcut conflict and inspect stderr for registration errors by launching from a terminal. |
-| Malformed messages ignored | Check required fields, booleans, RGB integer ranges, and exact type names. Run from a terminal to see errors. |
+## I can’t see the overlay
 
-## Yaplay opens, but Yapin does not appear
+1. Open Yaplay and press **Start**.
+2. Check that you chose the correct display.
+3. Join a call and enable your client’s Yaplay integration.
 
-Yaplay needs a compatible integration inside your Yapin client modification. Confirm that the integration is installed and enabled in Yapmod, Yap++, or your chosen host, and that it sends the current roster after connecting. Installing the overlay alone does not add that integration to the client.
+The overlay stays invisible until the integration sends call data. Installing Yaplay alone does not connect it to Yapin.
+
+## My client won’t connect
+
+Use `ws://127.0.0.1:8080` and run both apps on the same computer. If you changed the port in Yaplay, change it in the integration too.
+
+If the port is already in use, close any other Yaplay instance or choose another port in both apps.
+
+## The call buttons are disabled
+
+Your integration must support overlay controls, and you must be in a call. Check with the integration’s developer if the roster works but the controls don’t.
+
+## Notifications don’t appear
+
+Enable notifications in Yaplay’s settings and save. Notifications sent while disconnected are not replayed; visible notifications disappear after eight seconds.
+
+## macOS won’t open the app
+
+The builds are not notarized. For a build you trust, check **System Settings → Privacy & Security**. Current macOS releases require Apple Silicon; Intel Mac builds are no longer released.
+
+## The shortcut doesn’t work
+
+Use **Cmd+Shift+Y** on macOS or **Ctrl+Shift+Y** on Windows. Check whether another app already uses that shortcut.
+
+## Still stuck?
+
+[Open an issue](https://github.com/ilyeshdz/yaplay/issues) with your OS, Yaplay version, client integration, and steps to reproduce the problem. Integration developers can also check the [protocol](/docs/protocol) and [connection lifecycle](/docs/lifecycle).

@@ -28,8 +28,8 @@ Notifications appear on the opposite side, use the same colors, opacity, scale, 
 
 ## Profile pictures
 
-An integration can include an optional `avatar_url` on each roster member. Use a public **HTTPS** thumbnail URL, preferably 64–128 pixels square, no longer than 2,048 characters. PNG, JPEG, and WebP images are supported, limited to 1 MiB and 2,048 pixels per side. Images are resized to at most 128 pixels before display. Do not send credentials or full-resolution photographs. The desktop downloads and caches the image; it is never embedded into a WebSocket message.
+Turn **Profile pictures** on to show avatars supplied by your integration. Missing or unavailable pictures fall back to initials. Turn the option off to show names instead.
 
-Missing, invalid, inaccessible, or unsupported images show the member’s initial and color. Loading images also show initials. The network timeout is five seconds. Turning off Profile pictures displays names instead. See the [protocol](/docs/protocol) and [integration guide](/docs/integration).
+Choose your monitor in **Display**. If it is disconnected, Yaplay uses the primary display.
 
-Choose a monitor from the **Display** dropdown. The overlay and controls use that display; the icon-only controls open centered near its top edge. If the saved monitor is disconnected, Yaplay falls back to the primary display.
+Developers can find avatar requirements in the [protocol reference](/docs/protocol).

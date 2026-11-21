@@ -11,11 +11,9 @@ import tempfile
 PACKAGES = (
     "yaplay-windows-x86_64.exe",
     "Yaplay-aarch64-apple-darwin.dmg",
-    "Yaplay-x86_64-apple-darwin.dmg",
 )
 ARCHIVES = (
     "Yaplay-aarch64-apple-darwin.app.zip",
-    "Yaplay-x86_64-apple-darwin.app.zip",
 )
 
 

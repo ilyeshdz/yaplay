@@ -1,14 +1,5 @@
 # Changelog
 
-## Unreleased
-
-- Migrate the desktop windows, settings, overlay, and controls from Freya to GPUI, retaining the existing settings and WebSocket protocol.
-
-- Add saved overlay appearance settings, a live settings preview, HTTPS profile pictures with initials fallback, and screen-bounded rosters with speaker prioritization and overflow counts.
-- Extend the JavaScript wrapper with negotiated control callbacks and stale-request protection.
-
-- Connect overlay mute, deafen, and leave-call controls to integrations that negotiate the v1 control protocol. Display confirmed client state, disable unavailable controls, and clear the active client’s roster on disconnect.
-
 ## [1.2.0](https://github.com/ilyeshdz/yaplay/compare/v1.1.0...v1.2.0) (2026-11-21)
 
 

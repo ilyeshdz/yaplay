@@ -25,7 +25,6 @@ impl Global for Updates {}
 fn asset_name(os: &str, arch: &str) -> Option<&'static str> {
     match (os, arch) {
         ("macos", "aarch64") => Some("Yaplay-aarch64-apple-darwin.dmg"),
-        ("macos", "x86_64") => Some("Yaplay-x86_64-apple-darwin.dmg"),
         ("windows", "x86_64") => Some("yaplay-windows-x86_64.exe"),
         _ => None,
     }
@@ -271,10 +270,7 @@ mod tests {
             asset_name("macos", "aarch64"),
             Some("Yaplay-aarch64-apple-darwin.dmg")
         );
-        assert_eq!(
-            asset_name("macos", "x86_64"),
-            Some("Yaplay-x86_64-apple-darwin.dmg")
-        );
+        assert_eq!(asset_name("macos", "x86_64"), None);
         assert_eq!(
             asset_name("windows", "x86_64"),
             Some("yaplay-windows-x86_64.exe")
@@ -359,7 +355,10 @@ mod tests {
     // Uses only temporary installations and ephemeral keys. The cached download
     // still passes the engine's strict signature, checksum, and payload checks.
     #[test]
-    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    #[cfg(any(
+        all(target_os = "macos", target_arch = "aarch64"),
+        all(target_os = "windows", target_arch = "x86_64")
+    ))]
     fn signed_native_package_installs_to_an_isolated_location() {
         use gpui_updater::{Asset, Release, UpdateEngine, verify};
         use gpui_updater_release::{MinisignKey, MinisignOptions};

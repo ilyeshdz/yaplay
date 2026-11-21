@@ -77,11 +77,6 @@ jobs:
             target: aarch64-apple-darwin
             binary: yaplay
             artifact: yaplay-macos-aarch64
-          - name: macOS Intel
-            os: macos-latest
-            target: x86_64-apple-darwin
-            binary: yaplay
-            artifact: yaplay-macos-x86_64
 
     steps:
       - name: Check out the release commit
@@ -233,6 +228,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -246,3 +242,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag }}
         run: python3 scripts/publish-release.py --tag "$RELEASE_TAG" --dist dist --repo "$GITHUB_REPOSITORY"
+      # Token-created releases do not trigger other workflows automatically.
+      - name: Refresh release notes website
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run website.yml --ref master --repo "$GITHUB_REPOSITORY"

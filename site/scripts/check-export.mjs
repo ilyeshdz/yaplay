@@ -41,6 +41,7 @@ for (const file of htmlFiles) {
   }
 }
 await stat(path.join(root, 'docs', 'protocol', 'index.html'));
+await stat(path.join(root, 'releases', 'index.html'));
 await stat(path.join(root, 'yaplay-client.mjs'));
 await stat(path.join(root, '.nojekyll'));
 console.log(`Validated ${htmlFiles.length} static pages and ${checked} local links/assets (base: ${base || '/'}).`);
