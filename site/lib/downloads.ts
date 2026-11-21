@@ -2,7 +2,6 @@ export const releaseUrl = 'https://github.com/ilyeshdz/yaplay/releases';
 export const downloads = [
   { id: 'windows', label: 'Windows', detail: 'x86_64 · EXE', asset: 'yaplay-windows-x86_64.exe' },
   { id: 'mac-arm', label: 'macOS', detail: 'Apple Silicon · DMG', asset: 'Yaplay-aarch64-apple-darwin.dmg' },
-  { id: 'mac-intel', label: 'macOS', detail: 'Intel · DMG', asset: 'Yaplay-x86_64-apple-darwin.dmg' },
 ] as const;
 export function downloadUrl(asset: string) { return `${releaseUrl}/latest/download/${asset}`; }
 

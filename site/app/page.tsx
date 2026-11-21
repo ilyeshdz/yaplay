@@ -54,7 +54,7 @@ export default function Home() {
           <div className="download-options">
             {downloads.map((build) => <a key={build.id} href={downloadUrl(build.asset)} aria-label={`Download for ${build.label}, ${build.detail}`}><div>{build.label}<span>{build.detail}</span></div><Download size={18} aria-hidden="true" /></a>)}
           </div>
-          <p className="small">Linux is not supported yet. macOS builds are not notarized. Need help? <Link href="/docs/installation">Read the installation guide</Link>.</p>
+          <p className="small">Linux is not supported yet. macOS requires Apple Silicon; builds are not notarized. Need help? <Link href="/docs/installation">Read the installation guide</Link>.</p>
         </section>
       </main>
       <footer className="home-wrap"><p>An independent overlay for Yapin, built for your desktop.</p><nav aria-label="Community"><a className="home-link" href="https://github.com/ilyeshdz/yaplay">GitHub<ArrowUpRight size={14} aria-hidden="true" /></a><a className="home-link" href="https://github.com/ilyeshdz/yaplay/issues">Issues<ArrowUpRight size={14} aria-hidden="true" /></a></nav></footer>

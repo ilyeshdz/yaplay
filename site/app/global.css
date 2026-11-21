@@ -90,7 +90,7 @@ body { background: var(--yaplay-bg); color: var(--yaplay-text); }
 .notification-panel { right: 24px; width: 320px; height: 98px; padding: 12px; display: flex; flex-direction: column; gap: 4px; }
 .notification-body { color: #f3f1f0; font-size: 13px; }
 .overlay-example figcaption { margin-top: 10px; font-size: 12px; color: var(--yaplay-muted); }
-.download-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 28px 0 20px; }
+.download-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 28px 0 20px; }
 .download-options a { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 24px; border: 1px solid #ffb49b30; border-radius: 20px; background: linear-gradient(150deg, #ffb49b0d, transparent 65%), var(--yaplay-surface); font-weight: 600; }
 .download-options a:hover { border-color: var(--yaplay-accent); }
 .download-options span { display: block; margin-top: 6px; color: var(--yaplay-muted); font-size: 13px; font-weight: 400; }
@@ -114,10 +114,8 @@ body { background: var(--yaplay-bg); color: var(--yaplay-text); }
 @media (max-width: 360px) { .home-nav { flex-wrap: wrap; gap: 14px; } .intro h1 { font-size: 2.75rem; } }
 
 .home-actions { align-items: flex-start; }
-.detected-download { display: flex; flex-direction: column; align-items: center; gap: 10px; }
-.chip-choice { display: flex; align-items: center; gap: 10px; font-size: 14px; }
-.chip-choice select { background: var(--yaplay-surface); color: var(--yaplay-text); border: 1px solid var(--yaplay-border); border-radius: 8px; padding: 7px; }
-.download-hint { font-size: 12px; color: var(--yaplay-muted); }
+.detected-download { display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: 100%; }
+.download-hint { font-size: 11px; line-height: 1.5; color: var(--yaplay-muted); }
 .unsupported { border-color: var(--yaplay-border); background: var(--yaplay-surface); color: var(--yaplay-muted); }
 .release-page { max-width: 800px; padding-block: 64px; }
 .release-page h1 { font-size: clamp(40px, 7vw, 64px); line-height: 1.1; }

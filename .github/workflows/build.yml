@@ -66,11 +66,6 @@ jobs:
             target: aarch64-apple-darwin
             binary: yaplay
             artifact: yaplay-macos-aarch64
-          - name: macOS Intel
-            os: macos-latest
-            target: x86_64-apple-darwin
-            binary: yaplay
-            artifact: yaplay-macos-x86_64
 
     steps:
       - name: Check out the release commit
