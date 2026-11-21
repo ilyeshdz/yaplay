@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
 import { RootProvider } from 'fumadocs-ui/provider/next';
 import './global.css';
+import { branding } from '@/lib/branding';
 
 export const metadata: Metadata = {
-  title: { default: 'Yaplay', template: '%s — Yaplay' },
-  description: 'A desktop overlay built for Yapin. See voice activity and notifications through client modifications such as Yapmod and Yap++.',
+  title: { default: `${branding.name} — ${branding.tagline}`, template: `%s — ${branding.name}` },
+  description: branding.description,
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {

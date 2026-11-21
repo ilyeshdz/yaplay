@@ -1,17 +1,19 @@
 import Link from 'next/link';
 import { OverlayPreview } from '@/components/overlay-preview';
+import { Wordmark } from '@/components/wordmark';
+import { branding } from '@/lib/branding';
 
 const releases = 'https://github.com/ilyeshdz/yaplay/releases';
 export default function Home() {
   return (
     <div className="home">
       <header className="home-nav">
-        <Link className="wordmark" href="/">Yaplay</Link>
+        <Link href="/" aria-label="Yaplay home"><Wordmark /></Link>
         <nav aria-label="Main navigation"><a href="#download">Download</a><Link href="/docs">Docs</Link><a href="https://github.com/ilyeshdz/yaplay">GitHub</a></nav>
       </header>
       <main id="main">
         <section className="intro">
-          <h1>A desktop overlay for Yapin.</h1>
+          <h1>{branding.tagline}</h1>
           <p>See who’s talking on Yapin and receive notifications above your windows. Connect through a compatible integration in a Yapin client modification, such as Yapmod or Yap++.</p>
           <div className="home-actions"><a className="primary-link" href="#download">Download Yaplay</a><Link href="/docs">Integration guide</Link></div>
         </section>
@@ -27,7 +29,7 @@ export default function Home() {
           <p className="small">macOS builds are not notarized. If a build isn’t available yet, <Link href="/docs/installation">build from source</Link>.</p>
         </section>
       </main>
-      <footer>Built for Yapin. <Link href="/docs/integration">Build a client integration.</Link></footer>
+      <footer>{branding.tagline} <Link href="/docs/integration">Build a client integration.</Link></footer>
     </div>
   );
 }

@@ -1,6 +1,8 @@
 # Yaplay
 
-Yaplay is a desktop overlay built for Yapin. It shows your Yapin call roster, speaking activity, mute indicators, and notifications on top of your other windows. It is built in Rust with Freya.
+**An unofficial overlay for Yapin.**
+
+Yaplay shows your Yapin call roster, speaking activity, mute indicators, and notifications on top of your other windows. It is built in Rust with Freya.
 
 Yaplay connects to Yapin through client modification software such as **Yapmod** or **Yap++**. A compatible integration in the modified client forwards Yapin’s call state and notifications to Yaplay over a local WebSocket. Yapin handles the call and audio; Yaplay displays the overlay.
 
