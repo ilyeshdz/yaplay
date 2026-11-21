@@ -57,7 +57,7 @@ jobs:
     name: Rust lint and tests
     needs: changes
     if: needs.changes.outputs.rust == 'true'
-    # One native runner for Freya's desktop dependencies; no release matrix.
+    # One native runner for GPUI's desktop dependencies; no release matrix.
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4

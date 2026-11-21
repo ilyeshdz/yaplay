@@ -1,180 +1,115 @@
-use std::time::Duration;
+use crate::{
+    state::{ControlAction, app_state},
+    theme,
+};
+use gpui::{prelude::*, *};
+use gpui_component::{
+    Disableable, Icon, Sizable,
+    button::{Button, ButtonCustomVariant, ButtonVariants},
+};
 
-use async_io::Timer;
-use freya::prelude::*;
+pub const WIDTH: f32 = 296.0;
+pub const HEIGHT: f32 = 80.0;
 
-use crate::state::{OverlaySnapshot, app_state};
-
-pub fn controls() -> impl IntoElement {
-    use_init_theme(crate::theme::yaplay_theme);
-
-    let theme = use_theme();
-    let colors = theme.read().colors.clone();
-
-    let mut snapshot = use_state(OverlaySnapshot::default);
-
-    let platform = Platform::get();
-    let quit_platform = platform.clone();
-    let settings_platform = platform.clone();
-
-    use_hook(move || {
-        spawn(async move {
-            let mut last_open: Option<bool> = None;
-            loop {
-                if crate::hotkey::take_toggle_press() {
-                    let shared = app_state();
-                    if let Ok(mut state) = shared.write() {
-                        state.controls_open = !state.controls_open;
-                    }
-                }
-
-                let next = {
-                    let shared = app_state();
-                    let mut state = shared.write().unwrap_or_else(|error| error.into_inner());
-                    state.prune_notifications();
-                    state.snapshot()
-                };
-                let open = next.controls_open;
-
-                if last_open != Some(open) {
-                    last_open = Some(open);
-                    platform.with_window(None, move |window| {
-                        let _ = window.set_cursor_hittest(open);
-                    });
-                }
-
-                snapshot.set_if_modified(next);
-                Timer::after(Duration::from_millis(50)).await;
-            }
-        });
-    });
-
-    let current = snapshot.read();
-
-    if !current.controls_open {
-        return rect().width(Size::fill()).height(Size::fill());
-    }
-
-    let mic_label = if current.mic_muted {
-        "Unmute mic"
-    } else {
-        "Mute mic"
-    };
-    let deafen_label = if current.deafened {
-        "Undeafen"
-    } else {
-        "Deafen"
-    };
-
-    let mic_icon: &[u8] = if current.mic_muted {
-        include_bytes!("../assets/icons/microphone-off.svg")
-    } else {
-        include_bytes!("../assets/icons/microphone.svg")
-    };
-    let deafen_icon: &[u8] = if current.deafened {
-        include_bytes!("../assets/icons/headphones-off.svg")
-    } else {
-        include_bytes!("../assets/icons/headphones.svg")
-    };
-
-    rect()
-        .width(Size::fill())
-        .height(Size::fill())
-        .center()
-        .child(
-            rect()
-                .horizontal()
-                .spacing(10.0)
-                .cross_align(Alignment::Center)
-                .padding(Gaps::new_symmetric(12.0, 14.0))
-                .background(crate::theme::OVERLAY_SURFACE)
-                .border(Border::new().fill(colors.border).width(1.0))
-                .corner_radius(12.0)
-                .child(
-                    Button::new()
-                        .width(Size::px(42.0))
-                        .height(Size::px(42.0))
-                        .style_variant(if current.mic_muted {
-                            ButtonStyleVariant::Filled
-                        } else {
-                            ButtonStyleVariant::Normal
-                        })
-                        .on_press(move |_| {
-                            if let Ok(mut state) = app_state().write() {
-                                state.mic_muted = !state.mic_muted;
-                            }
-                        })
-                        .child(control_content(mic_icon, mic_label, current.mic_muted)),
-                )
-                .child(
-                    Button::new()
-                        .width(Size::px(42.0))
-                        .height(Size::px(42.0))
-                        .style_variant(if current.deafened {
-                            ButtonStyleVariant::Filled
-                        } else {
-                            ButtonStyleVariant::Normal
-                        })
-                        .on_press(move |_| {
-                            if let Ok(mut state) = app_state().write() {
-                                state.deafened = !state.deafened;
-                            }
-                        })
-                        .child(control_content(deafen_icon, deafen_label, current.deafened)),
-                )
-                .child(
-                    Button::new()
-                        .width(Size::px(42.0))
-                        .height(Size::px(42.0))
-                        .on_press(move |_| {
-                            let shared = app_state();
-                            let mut state = shared.write().unwrap();
-                            if let Some(id) = state.settings_window {
-                                settings_platform.with_window(Some(id), |window| {
-                                    window.set_minimized(false);
-                                    window.focus_window();
-                                });
-                            } else if !state.settings_open {
-                                state.settings_open = true;
-                                let platform = settings_platform.clone();
-                                spawn(async move {
-                                    platform.launch_window(crate::settings_window()).await;
-                                });
-                            }
-                        })
-                        .child(control_content(
-                            include_bytes!("../assets/icons/settings.svg"),
-                            "Settings",
-                            false,
-                        )),
-                )
-                .child(
-                    Button::new()
-                        .width(Size::px(42.0))
-                        .height(Size::px(42.0))
-                        .on_press(move |_| {
-                            drop(quit_platform.post_callback(|_, context| context.exit()));
-                        })
-                        .child(control_content(
-                            include_bytes!("../assets/icons/exit.svg"),
-                            "Exit",
-                            false,
-                        )),
-                ),
+fn control_button(id: &'static str, cx: &App) -> Button {
+    Button::new(id)
+        // Keep 24px icons inside generous 46px hit targets.
+        .with_size(px(32.0))
+        .size(px(46.0))
+        .border_0()
+        .rounded(px(14.0))
+        .custom(
+            ButtonCustomVariant::new(cx)
+                .color(rgb(theme::SURFACE).into())
+                .foreground(rgb(theme::TEXT).into())
+                .border(rgba(0x00000000).into())
+                .hover(rgb(0x302b2c).into())
+                .active(rgb(0x3d3432).into())
+                .shadow(false),
         )
 }
 
-/// Keep action names available to assistive technology without visible labels.
-fn control_content(icon: &'static [u8], text: &'static str, active: bool) -> impl IntoElement {
-    let color = if active {
-        crate::theme::BACKGROUND
-    } else {
-        crate::theme::TEXT
-    };
-    rect().center().a11y_alt(text).child(
-        SvgViewer::new(icon)
-            .width(Size::px(18.0))
-            .height(Size::px(18.0))
-            .color(color),
-    )
+pub struct Controls;
+impl Render for Controls {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let current = app_state().read().unwrap().snapshot();
+        let enabled = current.in_call && current.controls_available;
+        let mic = current.mic_muted;
+        let deaf = current.deafened;
+        div()
+            .size_full()
+            .flex()
+            .items_center()
+            .justify_center()
+            .child(
+                div()
+                    .flex()
+                    .gap(px(8.0))
+                    .p(px(12.0))
+                    .rounded(px(14.0))
+                    .bg(rgb(theme::SURFACE))
+                    .child(
+                        control_button("mute", cx)
+                            .icon(Icon::default().path(if mic {
+                                "icons/microphone-off.svg"
+                            } else {
+                                "icons/microphone.svg"
+                            }))
+                            .tooltip(if mic {
+                                "Unmute microphone"
+                            } else {
+                                "Mute microphone"
+                            })
+                            .when(mic, |b| b.primary())
+                            .disabled(!enabled)
+                            .on_click(move |_, _, _| {
+                                app_state()
+                                    .read()
+                                    .unwrap()
+                                    .request_control(ControlAction::SetMute { muted: !mic })
+                            }),
+                    )
+                    .child(
+                        control_button("deafen", cx)
+                            .icon(Icon::default().path(if deaf {
+                                "icons/headphones-off.svg"
+                            } else {
+                                "icons/headphones.svg"
+                            }))
+                            .tooltip(if deaf { "Undeafen" } else { "Deafen" })
+                            .when(deaf, |b| b.primary())
+                            .disabled(!enabled)
+                            .on_click(move |_, _, _| {
+                                app_state()
+                                    .read()
+                                    .unwrap()
+                                    .request_control(ControlAction::SetDeafen { deafened: !deaf })
+                            }),
+                    )
+                    .child(
+                        control_button("leave", cx)
+                            .icon(Icon::default().path("icons/phone-off.svg"))
+                            .tooltip("Leave call")
+                            .disabled(!enabled)
+                            .on_click(|_, _, _| {
+                                app_state()
+                                    .read()
+                                    .unwrap()
+                                    .request_control(ControlAction::LeaveCall {})
+                            }),
+                    )
+                    .child(
+                        control_button("settings", cx)
+                            .icon(Icon::default().path("icons/settings.svg"))
+                            .tooltip("Settings")
+                            .on_click(|_, _, cx| cx.defer(crate::windows::open_settings)),
+                    )
+                    .child(
+                        control_button("exit", cx)
+                            .icon(Icon::default().path("icons/exit.svg"))
+                            .tooltip("Exit Yaplay")
+                            .on_click(|_, _, cx| cx.quit()),
+                    ),
+            )
+    }
 }

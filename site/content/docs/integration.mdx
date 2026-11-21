@@ -50,6 +50,7 @@ function publishCall(call, currentUserId) {
   overlay.setRoster(call.members.map((member) => ({
     id: String(member.id),
     name: member.displayName,
+    avatar_url: member.avatarThumbnailUrl ?? null,
     color: member.rgb ?? [103, 80, 164],
     speaking: Boolean(member.isSpeaking),
     muted: Boolean(member.isMuted),
@@ -67,3 +68,31 @@ function publishCall(call, currentUserId) {
 The field names and event handlers above are illustrative, not an existing Yapmod or Yap++ plugin API. Use the actual lifecycle and event methods of your chosen client modification, publish its current Yapin call state when the plugin enables, and unsubscribe on unload. This repository provides the transport wrapper, not a packaged plugin for either host.
 
 If your client modification uses Rust, Python, or another language, use its WebSocket client and send the same JSON; the JavaScript wrapper is optional. Follow the [plugin lifecycle guide](/docs/lifecycle) to handle reconnects and cleanup.
+
+## Handle overlay controls
+
+Pass `onControl` to opt in. The wrapper sends the versioned `hello` before replaying state on each connection. Without this callback, your integration stays state-only and the call controls remain disabled.
+
+```js
+const overlay = new YaplayClient({
+  WebSocketImpl: WebSocket,
+  onControl: async (action) => {
+    // Illustrative host bridge: replace these methods with your host's APIs.
+    try {
+      if (action.type === 'set_mute') await host.voice.setMuted(action.muted);
+      if (action.type === 'set_deafen') await host.voice.setDeafened(action.deafened);
+      if (action.type === 'leave_call') await host.voice.leaveCall();
+    } finally {
+      // Publish actual state even when permissions or roles reject the request.
+      publishCall(host.voice.currentCall(), host.currentUserId());
+      overlay.setMic(host.voice.isMuted());
+      overlay.setDeafen(host.voice.isDeafened());
+    }
+  },
+  onControlError: (error) => console.error('Yaplay action failed:', error),
+});
+```
+
+These are desired-state commands, not blind toggles. Host event subscriptions should also continue publishing updates. Callbacks run in order, and failed callbacks report to `onControlError` without stopping subsequent actions. Queued actions from closed connections are discarded and never replayed. Already-running host actions cannot be cancelled by disconnecting the wrapper.
+
+Only the most recently negotiated integration owns call state and receives commands. Other connections can still send notifications. This prevents one button press from muting unrelated clients. The application Exit icon closes Yaplay; the phone icon requests leaving the Yapin call.

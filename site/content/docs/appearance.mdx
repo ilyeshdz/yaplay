@@ -1,0 +1,35 @@
+---
+title: "Customize the overlay"
+---
+
+Press **Cmd+Shift+Y** on macOS or **Ctrl+Shift+Y** on Windows, then select the settings gear. Scroll to **Appearance**. The preview updates while you edit; **Save** applies the settings to the running overlay and remembers them for next launch. Closing the settings window discards unsaved edits.
+
+| Setting | Options |
+| --- | --- |
+| Compact rows | Smaller avatars and less vertical space. |
+| Scale | 75–150% for text and avatars. |
+| Panel width | 180–400 logical pixels, scaled and constrained to the screen. |
+| Roster corner | Top left, top right, bottom left, or bottom right. |
+| Background opacity | 0–100%; text and avatars stay readable at full opacity. |
+| Corner radius | Square through rounded, 0–24 pixels. |
+| Screen margin | 8–80 pixels from the chosen edges. |
+| Maximum visible people | 1–20, reduced further when the screen is too short. |
+| Profile pictures, names, heading, yourself | Show or hide each detail. At least pictures or names remain visible. |
+| Active speakers first | Speakers first, then yourself, then the remaining roster in source order. Disable to preserve roster order. |
+| Background, text, speaking highlight | Any six-digit `#RRGGBB` color. |
+
+**Reset appearance** restores the defaults in the form; press Save to apply them. Old settings files receive the new defaults automatically.
+
+## Large calls
+
+The overlay stays click-through. It displays only the configured number of people that fit vertically, with a **+N more** count for the rest. Active speakers are promoted into view when speaker prioritization is enabled. Names stay on one line and truncate with an ellipsis. Only visible rows load profile pictures.
+
+Notifications appear on the opposite side, use the same colors, opacity, scale, and corners, and show only as many cards as fit. Long notification text is truncated. Roster and notification widths are constrained to separate halves of the screen.
+
+## Profile pictures
+
+An integration can include an optional `avatar_url` on each roster member. Use a public **HTTPS** thumbnail URL, preferably 64–128 pixels square, no longer than 2,048 characters. PNG, JPEG, and WebP images are supported, limited to 1 MiB and 2,048 pixels per side. Images are resized to at most 128 pixels before display. Do not send credentials or full-resolution photographs. The desktop downloads and caches the image; it is never embedded into a WebSocket message.
+
+Missing, invalid, inaccessible, or unsupported images show the member’s initial and color. Loading images also show initials. The network timeout is five seconds. Turning off Profile pictures displays names instead. See the [protocol](/docs/protocol) and [integration guide](/docs/integration).
+
+Choose a monitor from the **Display** dropdown. The overlay and controls use that display; the icon-only controls open centered near its top edge. If the saved monitor is disconnected, Yaplay falls back to the primary display.

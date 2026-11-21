@@ -7,18 +7,20 @@ Yapin call state and notifications
            ↓ client events
 Yapin client modification (Yapmod, Yap++, etc.)
            ↓ plugin or built-in Yaplay integration
-           ↓ JSON over local WebSocket
+           ↕ JSON over local WebSocket
 Yaplay → desktop roster + notifications
 ```
+
+The desktop UI uses GPUI with GPUI Component for settings inputs. The WebSocket server and settings persistence are independent of the rendering framework. Native window handles provide click-through behavior on macOS and Windows.
 
 The integration runs in the modified Yapin client. A **plugin** subscribes to the events exposed by Yapmod, Yap++, or another client modification. A **wrapper** provides convenient methods around Yaplay’s protocol. A **built-in integration** sends the same messages directly from the client modification’s code. All approaches use the same local connection.
 
 The WebSocket protocol is not tied to a specific plugin API. Your integration maps the host’s Yapin call and notification events to that protocol.
 
 *   Yaplay binds only to `127.0.0.1`, on the configured port.
-*   No application-level handshake, authentication, subscriptions, or acknowledgements are implemented.
-*   Messages flow from the modified Yapin client to Yaplay. There are no application-level replies.
-*   Multiple connections are accepted, but they share one overlay. The latest state message wins; prefer one active state producer.
+*   State-only integrations need no handshake. Bidirectional integrations opt in with `hello` version 1. There is no authentication.
+*   State and notifications flow to Yaplay. Mute, deafen, and leave-call requests flow back to the negotiated client, which publishes the actual resulting state.
+*   Multiple connections share one overlay. The latest negotiated control client owns call state and receives control requests; other clients can still send notifications. Without a control client, legacy state messages retain last-write-wins behavior.
 *   There is no discovery, automatic app launch, or plugin installation mechanism. Your integration must expose the port and explain how to start Yaplay.
 
 Localhost is not an authentication boundary. Local processes, and browser pages allowed to connect by their browser, may send updates. Do not expose this port publicly or send secrets. A native plugin or desktop bridge is preferable to a public website connection; browser mixed-content, CSP, and local-network policies can block it.

@@ -4,6 +4,7 @@ use std::{io, path::PathBuf};
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Configuration {
+    pub appearance: super::appearance::Appearance,
     pub selected_monitor_id: u32,
     pub notifications_enabled: bool,
     pub websocket_port: u16,
@@ -12,6 +13,7 @@ pub struct Configuration {
 impl Default for Configuration {
     fn default() -> Self {
         Self {
+            appearance: Default::default(),
             selected_monitor_id: 0,
             notifications_enabled: true,
             websocket_port: 8080,
@@ -43,13 +45,14 @@ impl Configuration {
     }
 
     pub fn load() -> io::Result<Self> {
-        let config: Self = serde_json::from_slice(&std::fs::read(Self::path()?)?)?;
+        let mut config: Self = serde_json::from_slice(&std::fs::read(Self::path()?)?)?;
         if config.websocket_port == 0 {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "Invalid connection port",
             ));
         }
+        config.appearance.normalize();
         Ok(config)
     }
 
@@ -70,6 +73,7 @@ mod tests {
             selected_monitor_id: 42,
             notifications_enabled: false,
             websocket_port: 9090,
+            ..Default::default()
         };
         let restored: Configuration =
             serde_json::from_slice(&serde_json::to_vec(&config).unwrap()).unwrap();

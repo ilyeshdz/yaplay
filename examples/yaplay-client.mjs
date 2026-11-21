@@ -1,12 +1,15 @@
 /** Small transport wrapper. Inject `ws` in Node or use a host's WebSocket. */
 export class YaplayClient {
-  constructor({ port = 8080, WebSocketImpl = globalThis.WebSocket, retryMs = 1500, onStatus = () => {} } = {}) {
+  constructor({ port = 8080, WebSocketImpl = globalThis.WebSocket, retryMs = 1500, onStatus = () => {}, onControl = null, onControlError = () => {} } = {}) {
     if (!Number.isInteger(port) || port < 1 || port > 65535) throw new RangeError('Invalid port');
     if (!WebSocketImpl) throw new Error('Provide a WebSocket implementation');
     this.url = `ws://127.0.0.1:${port}`;
     this.WebSocketImpl = WebSocketImpl;
     this.retryMs = retryMs;
+    if (onControl !== null && typeof onControl !== 'function') throw new TypeError('onControl must be a function');
     this.onStatus = onStatus;
+    this.onControl = onControl;
+    this.onControlError = onControlError;
     this.state = new Map();
     this.stopped = true;
     this.socket = null;
@@ -26,11 +29,26 @@ export class YaplayClient {
     this.socket = socket;
     socket.addEventListener('open', () => {
       if (this.socket !== socket || this.stopped) return;
+      if (this.onControl) this.send({ type: 'hello', version: 1, controls: true });
       // Replay a snapshot, never old notifications, after reconnecting.
       for (const type of ['voice_state', 'mic_state', 'deafen_state']) {
         if (this.state.has(type)) this.send(this.state.get(type));
       }
       this.onStatus('connected');
+    });
+    let pending = Promise.resolve();
+    socket.addEventListener('message', (event) => {
+      if (!this.onControl || this.socket !== socket || this.stopped) return;
+      let action;
+      try { action = JSON.parse(String(event.data)); } catch { return; }
+      if (!action || typeof action !== 'object') return;
+      const valid = (action.type === 'set_mute' && typeof action.muted === 'boolean') ||
+        (action.type === 'set_deafen' && typeof action.deafened === 'boolean') || action.type === 'leave_call';
+      if (!valid) return;
+      // Keep host actions in order; discard requests from an old connection.
+      pending = pending.then(() => {
+        if (this.socket === socket && socket.readyState === 1 && !this.stopped) return this.onControl(action);
+      }).catch((error) => { try { this.onControlError(error); } catch { /* Host error callbacks must not break delivery. */ } });
     });
     socket.addEventListener('error', () => {
       // Closing also covers hosts that do not automatically close on error.

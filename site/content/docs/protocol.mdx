@@ -2,7 +2,7 @@
 title: "Protocol reference"
 ---
 
-Send one JSON object per WebSocket **text frame**. The `type` discriminator is required and case-sensitive. Each required field must have the documented type. Invalid JSON, unknown message types, and invalid field types are logged and ignored. Binary messages are ignored. Messages and frames are limited to 64 KiB; exceeding the transport limit can close the connection.
+Send one JSON object per WebSocket **text frame**. The `type` discriminator is required and case-sensitive. Each required field must have the documented type. Invalid JSON, unknown message types, and invalid field types are logged and ignored. Binary messages are ignored. Messages and frames are limited to 1 MiB; exceeding the transport limit can close the connection.
 
 ### voice\_state
 
@@ -15,6 +15,7 @@ Send the complete roster when someone joins, leaves, speaks, mutes, or changes t
   "members": [{
     "id": "user-42",
     "name": "Mara",
+    "avatar_url": "https://example.com/avatars/mara.png",
     "color": [103, 80, 164],
     "speaking": true,
     "muted": false,
@@ -28,10 +29,11 @@ Send the complete roster when someone joins, leaves, speaks, mutes, or changes t
 | `in_call` | boolean | Whether a call is active. False clears the roster and local mic/deafen state. |
 | `members` | array | The complete list, in display order. |
 | `id` | string | A stable member identifier. |
-| `name` | string | Display name; its initial becomes the avatar. |
+| `name` | string | Display name; its initial is the fallback avatar. |
+| `avatar_url` | string or null, optional | Public HTTPS thumbnail URL, maximum 2,048 characters. Missing or failed images fall back to initials. |
 | `color` | three integers | RGB values, each from 0 to 255. |
 | `speaking` | boolean | Draws an active speaker border. |
-| `muted` | boolean | Dims the name and adds a mute indicator. |
+| `muted` | boolean | Adds a microphone-off icon. |
 | `is_self` | boolean | Marks the local user with “(you)”. |
 
 To end a call:
@@ -63,3 +65,29 @@ Updates the local mic display. A self member appears muted when either this valu
 ```
 
 Updates the control panel’s deafen display. This does not change actual audio or automatically mute the microphone.
+
+### Control negotiation
+
+A bidirectional integration sends this after each WebSocket connection:
+
+```json
+{ "type": "hello", "version": 1, "controls": true }
+```
+
+Only the most recently negotiated client receives controls and may update call/mic/deafen state. Other connections may still send notifications. Taking control clears the previous call until the new client publishes its snapshot. Legacy state-only integrations can continue sending the four messages above without negotiating. Call controls are disabled when no compatible client is connected or no call is active.
+
+Yaplay sends one of these JSON text messages when a control is pressed:
+
+```json
+{ "type": "set_mute", "muted": true }
+```
+
+```json
+{ "type": "set_deafen", "deafened": true }
+```
+
+```json
+{ "type": "leave_call" }
+```
+
+Apply the requested state using your host's voice actions, then send the resulting roster, mic, and deafen state. The overlay does not update optimistically: microphone permissions and call roles may prevent a request from succeeding. Do not replay control requests after reconnecting. Disconnecting the active control client clears its roster and disables call controls. The Exit button still exits Yaplay rather than leaving the Yapin call.

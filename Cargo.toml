@@ -4,16 +4,25 @@ version = "1.1.0"
 edition = "2024"
 
 [dependencies]
-freya = { version = "0.4.3", features = ["sdk-tokio"] }
-display-info = "0.5"
+gpui = { version = "0.2.2", features = ["runtime_shaders"] }
+gpui-component = "=0.5.1"
+anyhow = "1"
+raw-window-handle = "0.6"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
 tokio = { version = "1", features = ["full"] }
 tokio-tungstenite = "0.26"
 tungstenite = "0.26"
 futures-util = "0.3"
-async-io = "2"
 global-hotkey = "0.6"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"] }
 
 [target.'cfg(windows)'.build-dependencies]
 winresource = "0.1"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_UI_WindowsAndMessaging"] }
