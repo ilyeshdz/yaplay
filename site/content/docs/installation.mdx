@@ -1,0 +1,26 @@
+---
+title: "Install and start"
+---
+
+1.  Open [GitHub Releases](https://github.com/ilyeshdz/yaplay/releases) and choose a build for your computer.
+2.  On Windows, run `yaplay-windows-x86_64.exe`. On macOS, open the matching DMG and drag Yaplay into Applications, or unzip the app bundle.
+3.  Open Yaplay. Choose a display, enable or disable notifications, and set a port (default `8080`).
+4.  Press **Start**. The settings window closes and the local server starts. The empty overlay is invisible until your application sends data.
+5.  Connect your integration to `ws://127.0.0.1:8080`. Both programs must run on the same computer.
+
+On Apple Silicon, choose `aarch64-apple-darwin`; on Intel Macs, choose `x86_64-apple-darwin`. macOS builds are not notarized. If macOS blocks a trusted build, review it in System Settings Privacy & Security.
+
+### Build from source
+
+Install a current stable Rust toolchain (edition 2024 requires Rust 1.85 or later). Windows also needs C++ Build Tools and the Windows SDK; macOS needs Xcode Command Line Tools. Windows and macOS are the release targets; no Linux release is currently provided.
+
+```sh
+git clone https://github.com/ilyeshdz/yaplay.git
+cd yaplay
+cargo build --release --locked
+cargo run --release --locked
+```
+
+The executable is in `target/release/`. Use Ctrl+Shift+Y on Windows or Cmd+Shift+Y on macOS to open the control panel. Exit closes Yaplay; restart it to change settings.
+
+The mic and deafen buttons currently change the overlay’s display only. They do not control your app’s microphone or audio. There is no outbound command channel.

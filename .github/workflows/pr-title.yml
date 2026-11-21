@@ -1,0 +1,29 @@
+name: PR title
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-title-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  title:
+    name: Conventional PR title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate conventional PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          node --input-type=module -e '
+            const title = process.env.PR_TITLE;
+            if (!/^(feat|fix|perf|docs|refactor|test|build|ci|chore|style|revert)(\([^)]+\))?!?: .+/.test(title)) {
+              console.error("Use a Conventional Commit title, e.g. feat: add voice overlay");
+              process.exit(1);
+            }
+          '

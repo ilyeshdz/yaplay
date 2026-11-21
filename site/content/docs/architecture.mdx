@@ -1,0 +1,21 @@
+---
+title: "How it works"
+---
+
+```text
+Your application / call state
+           ↓ host events
+Plugin, wrapper, or native adapter
+           ↓ JSON over local WebSocket
+Yaplay desktop roster + notifications
+```
+
+A **plugin** runs inside a host application and subscribes to its events. A **wrapper** provides convenient methods around the protocol. A **direct integration** sends the same messages from your application’s existing code. All three approaches use the same connection.
+
+*   Yaplay binds only to `127.0.0.1`, on the configured port.
+*   No application-level handshake, authentication, subscriptions, or acknowledgements are implemented.
+*   Messages flow from the application to Yaplay. There are no application-level replies.
+*   Multiple connections are accepted, but they share one overlay. The latest state message wins; prefer one active state producer.
+*   There is no discovery, automatic app launch, or plugin installation mechanism. Your integration must expose the port and explain how to start Yaplay.
+
+Localhost is not an authentication boundary. Local processes, and browser pages allowed to connect by their browser, may send updates. Do not expose this port publicly or send secrets. A native plugin or desktop bridge is preferable to a public website connection; browser mixed-content, CSP, and local-network policies can block it.

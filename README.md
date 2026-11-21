@@ -1,6 +1,30 @@
 # Yaplay
 
-Yaplay is a desktop overlay for voice calls. It shows a call roster and notifications on top of your other windows. It is built in Rust with Freya.
+Yaplay is a desktop overlay for voice calls. It shows a call roster and notifications on top of your other windows. It is built in Rust with Freya. Yaplay is independent of any particular application or ecosystem: any app can integrate through a plugin, wrapper, or direct WebSocket connection.
+
+## Website and integration guide
+
+The website uses **Fumadocs + Next.js static export** in [`site/`](site/). Documentation lives in [`site/content/docs/`](site/content/docs/), and the homepage is [`site/app/page.tsx`](site/app/page.tsx). The output is plain static files: no Node.js server is needed in production.
+
+A reusable JavaScript wrapper is available in [`examples/yaplay-client.mjs`](examples/yaplay-client.mjs). It caches current state, reconnects automatically, and replays state without replaying old notifications. It is an example transport adapter, not a host-specific plugin API.
+
+Use Node.js 22 or newer:
+
+```sh
+cd site
+npm ci
+npm run dev
+```
+
+Open `http://localhost:3000`. To build the static website:
+
+```sh
+npm run build
+```
+
+The generated files are in `site/out/`. For a GitHub Pages project path, build with `NEXT_PUBLIC_BASE_PATH=/yaplay npm run build`. The Website workflow derives this path from the repository name, builds the site, and deploys `site/out/`. Select **GitHub Actions** in **Settings → Pages**, then run the workflow. The expected URL is `https://ilyeshdz.github.io/yaplay/` once deployed. For a custom domain at the root, set the repository variable `PAGES_BASE_PATH` to `/`.
+
+The build copies the wrapper into the static output for download. Run `npm run typecheck` inside `site/`, `node --test examples/yaplay-client.test.mjs` at the repository root, and `cargo test --locked` for Rust behavior.
 
 ## What it does
 
@@ -27,16 +51,24 @@ cargo build --release --locked
 The binary is written to `target/release/`. The GitHub Actions workflow builds Windows and macOS releases:
 
 - Windows: `yaplay-windows-x86_64.exe`
-- macOS Apple Silicon: `Yaplay-macos-aarch64.dmg` and `Yaplay-macos-aarch64.app.zip`
-- macOS Intel: `Yaplay-macos-x86_64.dmg` and `Yaplay-macos-x86_64.app.zip`
+- macOS Apple Silicon: `Yaplay-aarch64-apple-darwin.dmg` and `Yaplay-aarch64-apple-darwin.app.zip`
+- macOS Intel: `Yaplay-x86_64-apple-darwin.dmg` and `Yaplay-x86_64-apple-darwin.app.zip`
 
-Pushing a tag like `v0.1.0` attaches these files to a GitHub Release. Open the DMG and drag Yaplay to Applications, or unzip the app bundle and run it directly.
+Release Please opens a release PR on `master` with the next version and a [changelog](CHANGELOG.md). Merging that PR creates the tag and GitHub Release, then builds and attaches these files. Desktop release packaging never runs on ordinary pushes or pull requests. Open the DMG and drag Yaplay to Applications, or unzip the app bundle and run it directly.
+
+## Release lifecycle and checks
+
+Use Conventional Commit PR titles (`feat:`, `fix:`, `docs:`, `ci:`, etc.) and squash-merge feature PRs. Release Please accumulates changes since the previous release, updates `Cargo.toml`, `Cargo.lock`, and `CHANGELOG.md` in one release PR, and publishes after that PR is merged. The initial release is `1.0.0`.
+
+Pull requests run formatting, JavaScript wrapper tests, workflow validation, and Rust Clippy/tests on one macOS runner when Rust files change. Website changes also run static export and TypeScript/link checks. They do not build the Windows/macOS release matrix or package installers.
+
+See [RELEASING.md](RELEASING.md) for repository setup, versioning rules, release review, and retrying failed packaging.
 
 ## Connecting a client
 
-Any program that can open a WebSocket can control the overlay. There is no SDK and no handshake. Connect to `ws://127.0.0.1:8080`, or whatever port you set in Yaplay, and send JSON text messages.
+Any program that can open a WebSocket can control the overlay. There is no required SDK or application-level handshake; an optional JavaScript wrapper is included. Connect to `ws://127.0.0.1:8080`, or whatever port you set in Yaplay, and send JSON text messages.
 
-Each message has a `type` field. Multiple clients can connect at once. New `voice_state`, `mic_state`, and `deafen_state` messages replace the previous state. Notifications are added to a list and disappear after about 8 seconds. Yaplay does not send replies.
+Each message has a `type` field. Multiple clients can connect at once. New `voice_state`, `mic_state`, and `deafen_state` messages replace the previous state. Notifications are added to a list (at most five) and disappear after about 8 seconds. Disabled notifications are discarded. Ending a call clears the roster and local mic/deafen state. Yaplay does not send replies.
 
 ### voice_state
 
@@ -156,5 +188,8 @@ If the connection drops, reconnect and send the current roster again.
 - The server only listens on localhost and has no authentication.
 - Send the whole roster instead of trying to update single members.
 - Keep member ids stable between updates.
-- Invalid messages are logged and ignored.
+- Invalid messages are logged and ignored. WebSocket frames and messages are limited to 64 KiB.
+- Disconnecting does not clear shared state automatically. Send the end-call message before unloading your integration.
+- Multiple clients share one overlay; prefer one active state producer.
+- Browser connections may be restricted by mixed-content, CSP, or local-network policies. Prefer a desktop host bridge when needed.
 - The macOS app is not notarized. Allow it in System Settings if macOS blocks it.

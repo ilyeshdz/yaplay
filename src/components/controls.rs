@@ -3,7 +3,7 @@ use std::time::Duration;
 use async_io::Timer;
 use freya::prelude::*;
 
-use crate::state::{app_state, OverlaySnapshot};
+use crate::state::{OverlaySnapshot, app_state};
 
 pub fn controls() -> impl IntoElement {
     use_init_theme(dark_theme);
@@ -21,16 +21,15 @@ pub fn controls() -> impl IntoElement {
             let mut last_open: Option<bool> = None;
             loop {
                 if crate::hotkey::take_toggle_press() {
-                    if let Ok(mut state) = app_state().write() {
+                    let shared = app_state();
+                    if let Ok(mut state) = shared.write() {
                         state.controls_open = !state.controls_open;
                     }
                 }
 
                 let next = {
                     let shared = app_state();
-                    let mut state = shared
-                        .write()
-                        .unwrap_or_else(|error| error.into_inner());
+                    let mut state = shared.write().unwrap_or_else(|error| error.into_inner());
                     state.prune_notifications();
                     state.snapshot()
                 };
@@ -100,8 +99,7 @@ pub fn controls() -> impl IntoElement {
                 .child(
                     Button::new()
                         .on_press(move |_| {
-                            let _ =
-                                quit_platform.post_callback(|_, context| context.exit());
+                            drop(quit_platform.post_callback(|_, context| context.exit()));
                         })
                         .child(label().text("Exit")),
                 ),

@@ -1,1 +1,9 @@
 /target
+
+/site/node_modules/
+/site/.next/
+/site/out/
+/site/.source/
+/site/tsconfig.tsbuildinfo
+/site/public/yaplay-client.mjs
+/site/public/.nojekyll

@@ -7,6 +7,9 @@ pub mod windows;
 
 use freya::prelude::*;
 
+#[cfg(target_os = "macos")]
+use freya::winit::platform::macos::WindowAttributesExtMacOS;
+
 use crate::components::config_list;
 
 fn main() {
@@ -14,10 +17,21 @@ fn main() {
         eprintln!("Failed to register the global shortcut: {err}");
     }
 
-    launch(
-        LaunchConfig::new()
-            .with_window(WindowConfig::new(app).with_min_size(400.0, 800.0)),
-    );
+    let settings = WindowConfig::new(app)
+        .with_title("Yaplay Settings")
+        .with_min_size(400.0, 800.0);
+
+    // Draw the settings background underneath the native macOS titlebar,
+    // retaining the traffic-light buttons and native titlebar dragging.
+    #[cfg(target_os = "macos")]
+    let settings = settings.with_window_attributes(|attributes, _| {
+        attributes
+            .with_titlebar_transparent(true)
+            .with_title_hidden(true)
+            .with_fullsize_content_view(true)
+    });
+
+    launch(LaunchConfig::new().with_window(settings));
 }
 
 fn app() -> impl IntoElement {
@@ -28,7 +42,12 @@ fn app() -> impl IntoElement {
         .height(Size::fill())
         .theme_background()
         .theme_color()
-        .padding(Gaps::new_all(32.0))
+        .padding(if cfg!(target_os = "macos") {
+            // Leave the native titlebar controls clear of settings content.
+            Gaps::new(60.0, 32.0, 32.0, 32.0)
+        } else {
+            Gaps::new_all(32.0)
+        })
         .child(
             rect()
                 .width(Size::fill())
@@ -40,7 +59,12 @@ fn app() -> impl IntoElement {
                         .vertical()
                         .spacing(8.0)
                         .child(label().text("Yaplay").title().theme_color())
-                        .child(label().text("Configure your experience").subtitle().theme_color()),
+                        .child(
+                            label()
+                                .text("Configure your experience")
+                                .subtitle()
+                                .theme_color(),
+                        ),
                 )
                 .child(config_list()),
         )
