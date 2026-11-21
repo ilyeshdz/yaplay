@@ -15,6 +15,8 @@ pub fn app_state() -> SharedState {
         .clone()
 }
 
+pub const MAX_NOTIFICATIONS: usize = 5;
+
 pub const NOTIFICATION_TTL: Duration = Duration::from_secs(8);
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -49,9 +51,16 @@ pub enum ServerMessage {
         in_call: bool,
         members: Vec<VoiceMember>,
     },
-    Notification { title: String, body: String },
-    MicState { muted: bool },
-    DeafenState { deafened: bool },
+    Notification {
+        title: String,
+        body: String,
+    },
+    MicState {
+        muted: bool,
+    },
+    DeafenState {
+        deafened: bool,
+    },
 }
 
 #[derive(Clone, PartialEq, Eq, Default)]
@@ -78,7 +87,14 @@ pub struct AppState {
 
 impl AppState {
     pub fn push_notification(&mut self, title: impl Into<String>, body: impl Into<String>) {
-        self.next_notification_id += 1;
+        if !self.config.notifications_enabled {
+            return;
+        }
+        self.prune_notifications();
+        if self.notifications.len() >= MAX_NOTIFICATIONS {
+            self.notifications.remove(0);
+        }
+        self.next_notification_id = self.next_notification_id.wrapping_add(1);
         self.notifications.push(Notification {
             id: self.next_notification_id,
             title: title.into(),
@@ -89,14 +105,19 @@ impl AppState {
     }
 
     pub fn prune_notifications(&mut self) {
-        self.notifications.retain(|notification| !notification.is_expired());
+        self.notifications
+            .retain(|notification| !notification.is_expired());
     }
 
     pub fn apply(&mut self, message: ServerMessage) {
         match message {
             ServerMessage::VoiceState { in_call, members } => {
                 self.in_call = in_call;
-                self.voice_members = members;
+                self.voice_members = if in_call { members } else { Vec::new() };
+                if !in_call {
+                    self.mic_muted = false;
+                    self.deafened = false;
+                }
             }
             ServerMessage::Notification { title, body } => self.push_notification(title, body),
             ServerMessage::MicState { muted } => self.mic_muted = muted,
@@ -119,34 +140,48 @@ impl AppState {
             controls_open: self.controls_open,
         }
     }
+}
 
-    pub fn seed_fake_voice_state(&mut self) {
-        self.in_call = true;
-        self.voice_members = vec![
-            VoiceMember {
-                id: "self".to_string(),
-                name: "You".to_string(),
-                color: (103, 80, 164),
-                speaking: false,
-                muted: false,
-                is_self: true,
-            },
-            VoiceMember {
-                id: "u-mara".to_string(),
-                name: "Mara".to_string(),
-                color: (76, 175, 80),
-                speaking: true,
-                muted: false,
-                is_self: false,
-            },
-            VoiceMember {
-                id: "u-theo".to_string(),
-                name: "Theo".to_string(),
-                color: (255, 193, 7),
-                speaking: false,
-                muted: true,
-                is_self: false,
-            },
-        ];
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn leaving_call_clears_roster_and_local_state() {
+        let mut state = AppState::default();
+        state.mic_muted = true;
+        state.deafened = true;
+        let member = VoiceMember {
+            id: "self".into(),
+            name: "You".into(),
+            color: (103, 80, 164),
+            speaking: false,
+            muted: true,
+            is_self: true,
+        };
+        state.apply(ServerMessage::VoiceState {
+            in_call: false,
+            members: vec![member],
+        });
+        assert!(!state.in_call);
+        assert!(state.voice_members.is_empty());
+        assert!(!state.mic_muted && !state.deafened);
+    }
+
+    #[test]
+    fn notifications_respect_preferences_and_keep_only_latest() {
+        let mut state = AppState::default();
+        state.config.notifications_enabled = false;
+        state.push_notification("hidden", "");
+        assert!(state.notifications.is_empty());
+        state.config.notifications_enabled = true;
+        for n in 0..10 {
+            state.push_notification(n.to_string(), "");
+        }
+        assert_eq!(state.notifications.len(), MAX_NOTIFICATIONS);
+        assert_eq!(state.notifications[0].title, "5");
+        state.notifications[0].created = Instant::now() - NOTIFICATION_TTL;
+        state.prune_notifications();
+        assert_eq!(state.notifications.len(), MAX_NOTIFICATIONS - 1);
     }
 }

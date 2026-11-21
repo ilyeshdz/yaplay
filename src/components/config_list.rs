@@ -133,7 +133,6 @@ pub fn config_list() -> impl IntoElement {
                                     notifications_enabled: config.read().notifications_enabled,
                                     websocket_port: port,
                                 };
-                                state.seed_fake_voice_state();
                             }
 
                             if let Err(err) = websocket::start_server(port, app_state()) {

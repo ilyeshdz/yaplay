@@ -1,0 +1,47 @@
+---
+title: "Publish with GitHub Pages"
+description: "Build and publish the Fumadocs website as static files."
+---
+
+This website uses Fumadocs with Next.js and `output: 'export'`. Every page is generated during the build. Production needs only static hosting; there is no API route, search service, or Node.js server.
+
+## Local development
+
+Install Node.js 22 or newer, then run from the repository root:
+
+```sh
+cd site
+npm ci
+npm run dev
+```
+
+Open `http://localhost:3000`. Edit the homepage in `app/page.tsx` or the documentation in `content/docs/`. Fumadocs provides the sidebar, table of contents, code blocks, and page navigation. The homepage and documentation share a neutral dark theme.
+
+## Static build
+
+```sh
+npm run build
+```
+
+Upload the generated `out/` directory to a static host. The build also copies `examples/yaplay-client.mjs` into the output for download. The `.nojekyll` file allows GitHub Pages to serve Next.js assets under `_next/`.
+
+For a project hosted under a subdirectory, set the path at build time:
+
+```sh
+NEXT_PUBLIC_BASE_PATH=/yaplay npm run build
+```
+
+The base path applies to navigation, scripts, styles, and the wrapper download. Do not change it after building; rebuild when the deployment path changes.
+
+## GitHub Pages
+
+1. Push the repository to GitHub.
+2. In **Settings → Pages → Build and deployment**, select **GitHub Actions**.
+3. Run the **Website** workflow, or push website changes to `main` or `master`.
+4. Open the deployment URL shown by the workflow.
+
+The workflow installs locked dependencies, tests the wrapper, builds the website, checks types and exported links, and deploys `site/out/`. Pull requests build and validate without publishing.
+
+For this repository the default project URL is `https://ilyeshdz.github.io/yaplay/`. The workflow derives the base path from the repository name. A repository named `username.github.io` uses the domain root. For a custom domain at the root, set the repository Actions variable `PAGES_BASE_PATH` to `/` and configure the domain in Pages settings.
+
+Release downloads stay on GitHub Releases. Publishing the website does not publish a desktop release.

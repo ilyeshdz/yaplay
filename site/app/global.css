@@ -1,0 +1,62 @@
+@import 'tailwindcss';
+@import 'fumadocs-ui/css/neutral.css';
+@import 'fumadocs-ui/css/preset.css';
+
+:root { font-family: Arial, Helvetica, sans-serif; }
+.dark {
+  --color-fd-background: #111111;
+  --color-fd-foreground: #fafafa;
+  --color-fd-primary: #fafafa;
+  --color-fd-primary-foreground: #111111;
+  --color-fd-muted: #191919;
+  --color-fd-muted-foreground: #b0b0b0;
+  --color-fd-border: #333333;
+  --color-fd-card: #161616;
+  --color-fd-accent: #262626;
+  --color-fd-accent-foreground: #ffffff;
+}
+.home { max-width: 960px; margin: auto; padding: 0 24px; }
+.home-nav { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 26px 0; border-bottom: 1px solid #333; }
+.wordmark { font-size: 22px; font-weight: 600; letter-spacing: -.04em; }
+.home-nav nav { display: flex; gap: 24px; font-size: 14px; }
+.home a { text-underline-offset: 4px; }
+.home a:hover { text-decoration: underline; }
+.home a:focus-visible { outline: 2px solid white; outline-offset: 5px; }
+.intro { padding: 64px 0 40px; max-width: 650px; }
+.intro h1 { font-size: clamp(32px, 5vw, 48px); font-weight: 600; line-height: 1.15; letter-spacing: -.04em; }
+.intro p, .downloads > p { color: #b0b0b0; line-height: 1.7; margin-top: 20px; }
+.home-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 24px; margin-top: 24px; font-size: 14px; }
+.primary-link { background: #fafafa; color: #111; padding: 10px 16px; border-radius: 4px; }
+.overlay-viewport { overflow-x: auto; border: 1px solid #333; border-radius: 4px; }
+.overlay-screen { min-width: 640px; height: 290px; position: relative; background: #202020; color: #fafafa; font: 16px/1.2 Arial, Helvetica, sans-serif; }
+.voice-panel, .notification-panel { position: absolute; top: 48px; background: rgba(18, 18, 24, .843137); border: 1px solid #3c3c3c; border-radius: 8px; }
+.voice-panel { left: 24px; padding: 12px; }
+.voice-heading { color: #d2d2d2; margin-bottom: 8px; }
+.voice-members { display: flex; flex-direction: column; gap: 6px; }
+.voice-member { display: flex; align-items: center; gap: 8px; }
+.voice-avatar { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; color: white; flex-shrink: 0; }
+.voice-avatar.self { background: rgb(103, 80, 164); }
+.voice-avatar.speaking { background: rgb(76, 175, 80); border: 2px solid rgb(129, 199, 132); }
+.voice-avatar.theo { background: rgb(255, 193, 7); }
+.voice-member.muted { color: #d2d2d2; }
+.mute-dot { width: 8px; height: 8px; background: rgb(229, 115, 115); border-radius: 50%; }
+.notification-panel { right: 24px; width: 320px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.notification-body { color: #d2d2d2; }
+.overlay-example figcaption { margin-top: 10px; font-size: 12px; color: #999; }
+.downloads { padding: 48px 0; }
+.downloads h2 { font-size: 24px; font-weight: 600; letter-spacing: -.03em; }
+.downloads > p { margin-top: 12px; }
+.download-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 20px 0; }
+.download-options a { border: 1px solid #333; border-radius: 4px; padding: 14px 16px; font-size: 14px; }
+.download-options span { display: block; margin-top: 4px; color: #aaa; font-size: 12px; }
+.downloads .small { font-size: 13px; }
+.small a, footer a { text-decoration: underline; }
+.home footer { padding: 24px 0 32px; border-top: 1px solid #333; font-size: 13px; color: #aaa; }
+@media (max-width: 600px) {
+  .home { padding: 0 20px; }
+  .home-nav nav { gap: 16px; }
+  .intro { padding-top: 40px; }
+  .download-options { grid-template-columns: 1fr; }
+  .download-options a { display: flex; justify-content: space-between; align-items: center; }
+  .download-options span { margin: 0; }
+}

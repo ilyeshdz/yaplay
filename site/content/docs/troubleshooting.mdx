@@ -1,0 +1,14 @@
+---
+title: "Troubleshooting"
+---
+
+| Symptom | What to check |
+| --- | --- |
+| Connection refused | Press Start in Yaplay, confirm both ports match, and use 127.0.0.1 rather than a remote address. |
+| Port already in use | Choose another port in Yaplay and your integration, or close the other instance. |
+| No roster | Send a valid voice\_state with in\_call true and a nonempty members array. Check the selected display. |
+| No notification | Enable notifications before Start and send while connected. They disappear after eight seconds. |
+| State flickers or changes unexpectedly | Check for multiple producers. All clients share the same state. |
+| Browser connection blocked | Check mixed-content, CSP connect-src, and local-network restrictions. Use your desktop host’s permitted bridge. |
+| Shortcut does nothing | Check for a shortcut conflict and inspect stderr for registration errors by launching from a terminal. |
+| Malformed messages ignored | Check required fields, booleans, RGB integer ranges, and exact type names. Run from a terminal to see errors. |

@@ -1,0 +1,65 @@
+---
+title: "Build a wrapper"
+---
+
+The repository includes a <WrapperDownload /> (source: `examples/yaplay-client.mjs`). It retries connections, remembers the latest state, and replays that state after reconnecting. Notifications are sent only when connected and are not replayed.
+
+### A runnable Node.js example
+
+Use a current Node.js LTS. Copy the wrapper next to a file called `demo.mjs`, install `ws`, then paste the following into that file:
+
+```sh
+npm install ws
+node demo.mjs
+```
+
+```js
+import WebSocket from 'ws';
+import { YaplayClient } from './yaplay-client.mjs';
+
+const overlay = new YaplayClient({
+  port: 8080,
+  WebSocketImpl: WebSocket,
+  onStatus: (status) => console.log('Yaplay:', status),
+});
+
+// Prepare current state even if Yaplay is not yet running.
+overlay.setRoster([{
+  id: 'self', name: 'You', color: [103, 80, 164],
+  speaking: false, muted: false, is_self: true,
+}]);
+overlay.setMic(false);
+overlay.setDeafen(false);
+overlay.connect();
+
+process.on('SIGINT', () => {
+  overlay.setRoster([], false); // Best-effort clear before closing.
+  overlay.disconnect();
+});
+```
+
+Start Yaplay and press Start before or after launching the example. The wrapper retries every 1.5 seconds while disconnected. `connect()` is idempotent; `disconnect()` cancels retries. Its methods return whether the message was sent immediately; state is still cached when the return value is false. This is not a delivery acknowledgement.
+
+### Map your app’s state
+
+```js
+// Adapt these fields to YOUR application's data model.
+function publishCall(call, currentUserId) {
+  overlay.setRoster(call.members.map((member) => ({
+    id: String(member.id),
+    name: member.displayName,
+    color: member.rgb ?? [103, 80, 164],
+    speaking: Boolean(member.isSpeaking),
+    muted: Boolean(member.isMuted),
+    is_self: member.id === currentUserId,
+  })), call.active);
+}
+
+// Call these from your actual host event handlers:
+// publishCall(currentCall, currentUserId);
+// overlay.setMic(microphoneMuted);
+// overlay.setDeafen(audioDeafened);
+// overlay.notify('Call started', 'Your group is ready');
+```
+
+These are mapping examples, not an existing Yapin or Yapmod plugin API. Use your host’s actual lifecycle and event methods. For Rust, Python, or another language, use any WebSocket client and send the JSON above; the JavaScript wrapper is optional.
