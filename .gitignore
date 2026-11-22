@@ -10,3 +10,5 @@
 /site/public/branding/
 
 __pycache__/
+
+/.github/release/node_modules/

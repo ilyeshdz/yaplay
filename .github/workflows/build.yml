@@ -3,6 +3,8 @@ name: Release assets
 on:
   workflow_call:
     secrets:
+      YAPIN_RELEASE_WEBHOOK_URL:
+        required: true
       UPDATER_SIGNING_KEY:
         description: Minisign secret key contents for release packages
         required: true
@@ -19,7 +21,7 @@ on:
         type: string
 
 concurrency:
-  group: release-assets-${{ inputs.tag }}
+  group: release-assets
   cancel-in-progress: false
 
 permissions:
@@ -31,9 +33,11 @@ env:
 jobs:
   verify:
     name: Verify existing release
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.release.outputs.sha }}
+      publish: ${{ steps.release.outputs.publish }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -54,12 +58,19 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Expected vMAJOR.MINOR.PATCH"; exit 1; }
-          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json tagName
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,isPrerelease > state.json
+          jq -e '.isPrerelease == false' state.json > /dev/null
+          echo "publish=$(jq -r .isDraft state.json)" >> "$GITHUB_OUTPUT"
+          if jq -e '.isDraft == false' state.json > /dev/null; then exit 0; fi
           sha=$(git rev-parse --verify "refs/tags/$RELEASE_TAG^{commit}")
+          git merge-base --is-ancestor "$sha" origin/master
+          git checkout --detach "$sha"
+          python3 scripts/verify-release.py "$RELEASE_TAG"
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
   build:
     name: Package ${{ matrix.name }}
+    if: needs.verify.outputs.publish == 'true'
     needs: verify
     runs-on: ${{ matrix.os }}
     strategy:
@@ -224,6 +235,8 @@ jobs:
 
   upload:
     name: Attach release assets
+    outputs:
+      published: ${{ steps.publish.outputs.published }}
     needs: [verify, sign]
     runs-on: ubuntu-latest
     permissions:
@@ -238,6 +251,7 @@ jobs:
           name: signed-release
           path: dist
       - name: Upload to the existing release
+        id: publish
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag }}
@@ -247,3 +261,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run website.yml --ref master --repo "$GITHUB_REPOSITORY"
+
+  announce:
+    needs: upload
+    if: needs.upload.outputs.published == 'true'
+    uses: ./.github/workflows/announce-release.yml
+    with:
+      tag: ${{ inputs.tag }}
+    secrets:
+      YAPIN_RELEASE_WEBHOOK_URL: ${{ secrets.YAPIN_RELEASE_WEBHOOK_URL }}

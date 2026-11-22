@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -39,10 +40,14 @@ def publish(tag, directory, repository):
         if f"{digest(directory / name)}  ./{name}\n" not in sums:
             raise ValueError(f"Missing or incorrect checksum: {name}")
     result = subprocess.run(
-        ["gh", "release", "view", tag, "--repo", repository, "--json", "assets"],
+        ["gh", "release", "view", tag, "--repo", repository, "--json", "assets,isDraft,isPrerelease"],
         check=True, capture_output=True, text=True,
     )
-    existing = {asset["name"] for asset in json.loads(result.stdout)["assets"]}
+    release = json.loads(result.stdout)
+    if release["isPrerelease"]:
+        raise ValueError("Only stable releases can be published")
+    existing = {asset["name"] for asset in release["assets"]}
+    notes = release_notes(tag) if release["isDraft"] else None
     # Compare all existing files before uploading any missing file. A rebuild
     # is not necessarily reproducible (DMG creation, timestamps, signatures).
     with tempfile.TemporaryDirectory(prefix="yaplay-release-") as temporary:
@@ -62,6 +67,38 @@ def publish(tag, directory, repository):
                 check=True,
             )
 
+    if not release["isDraft"]:
+        return False
+    latest = subprocess.run(
+        ["gh", "release", "view", "--repo", repository, "--json", "tagName"],
+        check=True, capture_output=True, text=True,
+    )
+    latest_tag = json.loads(latest.stdout)["tagName"]
+    if not re.fullmatch(r"v\d+\.\d+\.\d+", latest_tag):
+        raise ValueError("Expected a stable latest release tag")
+    version = lambda value: tuple(map(int, value[1:].split(".")))
+    make_latest = str(version(tag) >= version(latest_tag)).lower()
+    with tempfile.TemporaryDirectory(prefix="yaplay-notes-") as temporary:
+        notes_path = Path(temporary) / "notes.md"
+        notes_path.write_text(notes, encoding="utf-8")
+        subprocess.run(
+            ["gh", "release", "edit", tag, "--repo", repository,
+             "--draft=false", f"--latest={make_latest}", "--notes-file", str(notes_path)],
+            check=True,
+        )
+    return True
+
+
+def release_notes(tag, path=Path("CHANGELOG.md")):
+    text = path.read_text(encoding="utf-8")
+    sections = re.findall(
+        rf"^## \[{re.escape(tag[1:])}\][^\n]*\n(.*?)(?=^## |\Z)",
+        text, re.MULTILINE | re.DOTALL,
+    )
+    if len(sections) != 1 or not re.search(r"^[-*] \S", sections[0], re.MULTILINE):
+        raise ValueError(f"Missing hand-written notes for {tag}")
+    return sections[0].strip()
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
@@ -69,4 +106,7 @@ if __name__ == "__main__":
     parser.add_argument("--dist", type=Path, required=True)
     parser.add_argument("--repo", required=True)
     args = parser.parse_args()
-    publish(args.tag, args.dist, args.repo)
+    published = publish(args.tag, args.dist, args.repo)
+    if output := os.environ.get("GITHUB_OUTPUT"):
+        with open(output, "a", encoding="utf-8") as stream:
+            stream.write(f"published={str(published).lower()}\n")

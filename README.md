@@ -102,11 +102,21 @@ The binary is written to `target/release/`. The GitHub Actions workflow builds W
 - Windows: `yaplay-windows-x86_64.exe`
 - macOS Apple Silicon: `Yaplay-aarch64-apple-darwin.dmg` and `Yaplay-aarch64-apple-darwin.app.zip`
 
-Release Please opens a release PR on `master` with the next version and a [changelog](CHANGELOG.md). Merging that PR creates the tag and GitHub Release, then builds and attaches these files. Desktop release packaging never runs on ordinary pushes or pull requests. Open the DMG and drag Yaplay to Applications, or unzip the app bundle and run it directly.
+Release Please opens a release PR on `master` with the next version and a [changelog](CHANGELOG.md). Merging that PR creates the tag and a draft GitHub Release, then builds, signs, and attaches these files before publishing. Desktop release packaging never runs on ordinary pushes or pull requests. Open the DMG and drag Yaplay to Applications, or unzip the app bundle and run it directly.
 
 ## Release lifecycle and checks
 
-Use Conventional Commit PR titles (`feat:`, `fix:`, `docs:`, `ci:`, etc.) and squash-merge feature PRs. Release Please accumulates changes since the previous release, updates `Cargo.toml`, `Cargo.lock`, and `CHANGELOG.md` in one release PR, and publishes after that PR is merged. The initial release is `1.0.0`.
+Write concise user-facing bullets under `## [Unreleased]` in `CHANGELOG.md` in the same PR as each product change. Group notes under `### Added`, `### Changed`, `### Fixed`, or `### Removed` and use inline links. Checks require updated notes for `src/` and the JavaScript client wrapper; docs, tests, and tooling-only PRs do not require entries. Add notes for user-visible dependency and packaging changes too.
+
+Use Conventional Commit PR titles and squash-merge: `fix:` selects a patch, `feat:` a minor, and `!` or `BREAKING CHANGE:` a major. Release Please keeps one rolling PR on `master`, synchronizes `Cargo.toml` and `Cargo.lock`, and moves the authored notes under a dated version heading. An empty Unreleased section produces no release. Do not bump versions or move entries manually. Correct notes through normal PRs against master; direct edits to the rolling branch are replaced on refresh.
+
+Review the release PR and merge after its checks pass. The workflow creates a draft and stable tag, packages and signs the downloads, uploads the checksum marker last, then makes the release public and announces it on Yapin. Published notes come from the changelog at the approved tag. This uses a pinned Release Please library and custom Rust strategy in `.github/release`; the stock action does not load that strategy.
+
+Enable **Settings → Actions → General → Allow GitHub Actions to create and approve pull requests**. Set the Actions secret `YAPIN_RELEASE_WEBHOOK_URL` to the Yaplay webhook and variable `YAPIN_RELEASE_ROLE_ID` to its role ID. Announcements mention only that role, include the notes and release link, and shorten long notes at complete lines. The built-in token explicitly dispatches checks and packaging and calls the announcement workflow after publication.
+
+For failed packaging, rerun failed jobs or dispatch **Release assets** from `master` with the existing tag. Existing assets remain immutable: after a partial upload, rerun the upload job using the saved signed artifacts. Rebuilding may produce different bytes and is deliberately rejected. Already-public releases are skipped, and an older retry cannot replace Latest. To change a public release, ship a newer version.
+
+If announcement delivery fails, rerun the announcement job. Dispatch **Announce release on Yapin** with a published tag only to resend a message; a resend posts again. Announcement failures do not roll back publishing. Manual publication also triggers announcements. If release PR checks were not dispatched, run **Checks** on its branch; if a release dispatch failed, run **Release assets** with the existing tag.
 
 Pull requests run formatting, JavaScript wrapper tests, workflow validation, and Rust Clippy/tests on macOS and Windows runners when Rust files change. Website changes also run static export and TypeScript/link checks. They do not build the Windows/macOS release matrix or package installers.
 

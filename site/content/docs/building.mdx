@@ -51,8 +51,8 @@ set. A release workflow refuses to package without signing configuration.
 Release assets retain their current names. Each DMG and EXE gets a `.minisig`
 sidecar whose trusted comment binds its release version. SHA256SUMS is published
 last so a partially uploaded release cannot pass strict verification. The GitHub
-release can appear earlier; checks may report an update error until packaging
-finishes and will retry on the next scheduled or manual check.
+release stays in draft until all signed assets and checksums are uploaded, then
+becomes public and is announced on Yapin.
 
 Key rotation requires first shipping a client that trusts both the old and new
 public keys, signed with the old key, before switching release signing to the

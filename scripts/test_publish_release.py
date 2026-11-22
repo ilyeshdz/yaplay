@@ -26,12 +26,20 @@ class PublishTests(unittest.TestCase):
         ))
         self.existing = {}
         self.uploaded = []
+        self.draft = True
+        self.latest = 'v1.2.0'
+        self.finalized = []
 
     def run_gh(self, command, **kwargs):
         action = command[2]
+        if action == "view" and "tagName" in command:
+            return subprocess.CompletedProcess(command, 0, json.dumps({"tagName": self.latest}))
+        if action == "edit":
+            self.finalized.append(command)
         if action == "view":
             return subprocess.CompletedProcess(command, 0, json.dumps({
-                "assets": [{"name": name} for name in self.existing]
+                "assets": [{"name": name} for name in self.existing],
+                "isDraft": self.draft, "isPrerelease": False
             }))
         if action == "download":
             name = command[command.index("--pattern") + 1]
@@ -42,8 +50,8 @@ class PublishTests(unittest.TestCase):
         return subprocess.CompletedProcess(command, 0)
 
     def publish(self):
-        with patch.object(publisher.subprocess, "run", side_effect=self.run_gh):
-            publisher.publish("v1.3.0", self.dist, "owner/repo")
+        with patch.object(publisher.subprocess, "run", side_effect=self.run_gh), patch.object(publisher, "release_notes", return_value="### Fixed\n\n- A human note."):
+            return publisher.publish("v1.3.0", self.dist, "owner/repo")
 
     def test_checksum_readiness_marker_is_last(self):
         self.publish()
@@ -73,6 +81,27 @@ class PublishTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "incorrect checksum"):
             self.publish()
         self.assertEqual(self.uploaded, [])
+
+    def test_publishes_only_after_all_assets_and_does_not_announce_public_retry(self):
+        self.assertTrue(self.publish())
+        self.assertEqual(len(self.finalized), 1)
+        self.assertIn('--latest=true', self.finalized[0])
+        self.draft = False
+        self.finalized.clear()
+        self.assertFalse(self.publish())
+        self.assertEqual(self.finalized, [])
+
+    def test_old_release_cannot_replace_latest(self):
+        self.latest = 'v1.4.0'
+        self.publish()
+        self.assertIn('--latest=false', self.finalized[0])
+
+    def test_reads_versioned_human_notes_and_rejects_empty_notes(self):
+        path = self.dist / 'CHANGELOG.md'
+        path.write_text('# Changelog\n\n## [Unreleased]\n\n## [1.3.0] (2026-11-22)\n\n### Fixed\n\n- Human note.\n\n## [1.2.0]\n\n- Old note.')
+        self.assertEqual(publisher.release_notes('v1.3.0', path), '### Fixed\n\n- Human note.')
+        with self.assertRaisesRegex(ValueError, 'Missing hand-written'):
+            publisher.release_notes('v9.0.0', path)
 
 
 if __name__ == "__main__":

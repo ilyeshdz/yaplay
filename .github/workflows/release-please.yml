@@ -6,7 +6,10 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: write
 
 concurrency:
   group: release-please
@@ -16,46 +19,15 @@ jobs:
   release:
     if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-      issues: write
-      actions: write
-    outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
-      - uses: googleapis/release-please-action@v4
-        id: release
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          target-branch: master
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
-      # GITHUB_TOKEN-created PRs do not emit another pull_request workflow run.
-      # Explicit dispatch is supported and attaches checks to the release branch.
-      - name: Check the release PR
-        if: steps.release.outputs.prs_created == 'true'
-        uses: actions/github-script@v7
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: .github/release/package-lock.json
+      - run: npm ci --prefix .github/release
+      # GITHUB_TOKEN changes do not emit workflow events; dispatch checks and builds explicitly.
+      - run: node .github/release/release-please.mjs
         env:
-          RELEASE_PRS: ${{ steps.release.outputs.prs }}
-        with:
-          script: |
-            for (const pr of JSON.parse(process.env.RELEASE_PRS)) {
-              await github.rest.actions.createWorkflowDispatch({
-                ...context.repo,
-                workflow_id: 'checks.yml',
-                ref: pr.headBranchName,
-              });
-            }
-
-  package:
-    needs: release
-    if: needs.release.outputs.release_created == 'true'
-    permissions:
-      contents: write
-      actions: write
-    uses: ./.github/workflows/build.yml
-    secrets:
-      UPDATER_SIGNING_KEY: ${{ secrets.UPDATER_SIGNING_KEY }}
-    with:
-      tag: ${{ needs.release.outputs.tag_name }}
+          GH_TOKEN: ${{ github.token }}
