@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.5.0] (2026-11-22)
+
 ### Changed
 
 - Release notes are now written in each change PR. New releases become public after signed downloads are ready and are announced on Yapin.
