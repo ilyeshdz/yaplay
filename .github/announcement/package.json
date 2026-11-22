@@ -1,0 +1,10 @@
+{
+  "name": "release-banner-tooling",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "geist": "1.9.2",
+    "react": "19.3.1",
+    "takumi-js": "2.20.0"
+  }
+}

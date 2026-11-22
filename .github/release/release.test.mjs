@@ -75,7 +75,7 @@ test("Yaplay announcements retain notes and ping only its configured role", () =
   const role = "c8be2daa-4ac7-402a-b119-2336394a0b24";
   const message = releaseMessage(release, role);
   assert.ok(message.content.includes("Yaplay v1.5.0"));
-  assert.ok(message.content.includes(notes));
+  assert.ok(message.embeds[0].description.includes("- Hand-written release notes."));
   assert.deepEqual(message.allowed_mentions, { parse: [], roles: [role] });
   assert.throws(() => releaseMessage({ ...release, draft: true }, role));
 });

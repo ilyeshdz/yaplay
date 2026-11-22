@@ -263,6 +263,8 @@ jobs:
         run: gh workflow run website.yml --ref master --repo "$GITHUB_REPOSITORY"
 
   announce:
+    permissions:
+      contents: write
     needs: upload
     if: needs.upload.outputs.published == 'true'
     uses: ./.github/workflows/announce-release.yml

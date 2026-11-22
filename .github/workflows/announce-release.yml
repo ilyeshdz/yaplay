@@ -19,7 +19,7 @@ on:
         type: string
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: announce-release-${{ inputs.tag || github.event.release.tag_name }}
@@ -36,14 +36,20 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24
+      - run: npm ci --prefix .github/announcement
       - name: Read published release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name }}
         run: |
           gh api "repos/$GITHUB_REPOSITORY/releases/tags/$(node -p 'encodeURIComponent(process.env.RELEASE_TAG)')" > "$RUNNER_TEMP/yaplay-release.json"
-      - name: Send Markdown announcement
+      - name: Generate and host release banner
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node .github/announcement/publish-banner.mjs "$RUNNER_TEMP/yaplay-release.json" "$RUNNER_TEMP/release-banner.png"
+      - name: Send embed announcement
         env:
           YAPIN_RELEASE_WEBHOOK_URL: ${{ secrets.YAPIN_RELEASE_WEBHOOK_URL }}
+          YAPIN_RELEASE_NONCE: release-${{ github.run_id }}
           YAPIN_RELEASE_ROLE_ID: ${{ vars.YAPIN_RELEASE_ROLE_ID }}
         run: node .github/release/announce-release.mjs "$RUNNER_TEMP/yaplay-release.json"
