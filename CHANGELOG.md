@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Release notes are now written in each change PR. New releases become public after signed downloads are ready and are announced on Yapin.
+
 ## [1.4.0](https://github.com/ilyeshdz/yaplay/compare/v1.3.0...v1.4.0) (2026-11-21)
 
 

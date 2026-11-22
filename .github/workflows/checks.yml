@@ -23,6 +23,8 @@ jobs:
       rust: ${{ steps.paths.outputs.rust }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: dorny/paths-filter@v3
         id: paths
         with:
@@ -43,6 +45,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
@@ -50,6 +54,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - run: npm ci --prefix .github/release
+      - run: npm test --prefix .github/release
+      - run: node .github/release/check-changelog.mjs
+        env:
+          CHANGELOG_BASE: ${{ github.event.pull_request.base.sha || 'origin/master' }}
       - run: node --test examples/yaplay-client.test.mjs
       - run: python3 -m unittest discover -s scripts -p 'test_*.py'
       - name: Validate workflows
@@ -66,6 +75,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
