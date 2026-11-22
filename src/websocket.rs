@@ -211,8 +211,11 @@ mod tests {
         let next = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let next_port = next.local_addr().unwrap().port();
         drop(next);
-        start_server(next_port, state).unwrap();
-        assert!(std::net::TcpListener::bind(("127.0.0.1", port)).is_ok());
+        start_server(next_port, state.clone()).unwrap();
+        assert!(std::net::TcpStream::connect(("127.0.0.1", port)).is_err());
+        // Exercise the real listener's address-reuse settings. A plain std
+        // listener can fail on macOS while the earlier connection is in TIME_WAIT.
+        start_server(port, state).unwrap();
         let server = SERVER.lock().unwrap().take().unwrap();
         let _ = server.shutdown.send(());
         server.thread.join().unwrap();

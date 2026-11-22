@@ -9,7 +9,11 @@ const pending = section(readFileSync("CHANGELOG.md", "utf8"), "Unreleased").body
 const files = git("diff", "--name-only", `${base}...HEAD`).split("\n");
 if (files.some((file) => file.startsWith("src/") || file === "examples/yaplay-client.mjs")) {
   const previous = git("show", `${git("merge-base", base, "HEAD")}:CHANGELOG.md`);
-  if (!hasNotes(pending) || pending === section(previous, "Unreleased").body) {
+  // The migration introduces Unreleased for the first time in this repository.
+  const previousNotes = /^## \[Unreleased\]$/m.test(previous)
+    ? section(previous, "Unreleased").body
+    : "";
+  if (!hasNotes(pending) || pending === previousNotes) {
     throw new Error("Add hand-written user-facing notes under ## [Unreleased] in CHANGELOG.md.");
   }
 }
