@@ -1,4 +1,4 @@
-use super::user_cell::user_cell;
+use super::voice_list::{roster_layout, roster_panel};
 use crate::{
     data::{
         appearance::{Appearance, Corner, parse_color},
@@ -12,7 +12,7 @@ use crate::{
 use gpui::{prelude::*, *};
 use gpui_component::{
     Disableable, IndexPath,
-    button::{Button, ButtonVariants},
+    button::{Button, ButtonCustomVariant, ButtonVariants},
     input::{Input, InputState},
     select::{Select, SelectEvent, SelectItem, SelectState},
     slider::{Slider, SliderState},
@@ -43,7 +43,36 @@ impl SelectItem for DisplayChoice {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Section {
+    General,
+    Overlay,
+    Appearance,
+    Updates,
+}
+
+impl Section {
+    fn icon(self) -> &'static str {
+        match self {
+            Self::General => "icons/settings.svg",
+            Self::Overlay => "icons/panels.svg",
+            Self::Appearance => "icons/palette.svg",
+            Self::Updates => "icons/update.svg",
+        }
+    }
+
+    fn title(self) -> &'static str {
+        match self {
+            Self::General => "General",
+            Self::Overlay => "Overlay",
+            Self::Appearance => "Appearance",
+            Self::Updates => "Updates",
+        }
+    }
+}
+
 pub struct Settings {
+    section: Section,
     display: Entity<SelectState<Vec<DisplayChoice>>>,
     config: Configuration,
     port: Entity<InputState>,
@@ -153,6 +182,7 @@ impl Settings {
             ),
         };
         Self {
+            section: Section::General,
             start_at_login,
             startup_error,
             reset_panels: false,
@@ -201,21 +231,27 @@ impl Settings {
         style
     }
     fn save(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
-        let Ok(port) = self.port.read(cx).value().parse::<u16>() else {
+        let Some(port) = self
+            .port
+            .read(cx)
+            .value()
+            .parse::<u16>()
+            .ok()
+            .filter(|port| *port > 0)
+        else {
+            self.section = Section::General;
+            self.port.update(cx, |input, cx| input.focus(window, cx));
             self.error = "Enter a port between 1 and 65535.".into();
             cx.notify();
             return;
         };
-        if port == 0 {
-            self.error = "Port must be greater than zero.".into();
-            cx.notify();
-            return;
-        }
         let mut style = self.appearance(cx);
-        if [&style.background, &style.foreground, &style.accent]
+        if let Some(index) = [&style.background, &style.foreground, &style.accent]
             .iter()
-            .any(|c| parse_color(c).is_none())
+            .position(|c| parse_color(c).is_none())
         {
+            self.section = Section::Appearance;
+            self.colors[index].update(cx, |input, cx| input.focus(window, cx));
             self.error = "Use six-digit colors such as #ffb49b.".into();
             cx.notify();
             return;
@@ -278,130 +314,88 @@ impl Settings {
     }
 }
 
-impl Render for Settings {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let mut preview = self.appearance(cx);
-        preview.normalize();
-        let style = &self.config.appearance;
-        let mut form = div()
-            .flex()
-            .flex_col()
-            .gap(px(18.0))
-            .p(px(20.0))
-            .bg(rgb(theme::SURFACE))
-            .rounded(px(12.0))
-            .child(crate::updater::panel(cx))
-            .child(
-                Switch::new("automatic-update-checks")
-                    .label("Automatically check for updates")
-                    .checked(self.config.automatic_update_checks)
-                    .on_click(cx.listener(|this, value, _, cx| {
-                        this.config.automatic_update_checks = *value;
-                        cx.notify();
-                    })),
-            )
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(rgb(theme::MUTED))
-                    .child("Press Save or Start to apply this preference."),
-            )
-            .child(
-                Switch::new("start-at-login")
-                    .label("Start Yaplay when I sign in")
-                    .checked(self.start_at_login.unwrap_or(false))
-                    .disabled(self.start_at_login.is_none())
-                    .on_click(cx.listener(|this, value, _, cx| {
-                        this.set_start_at_login(*value, cx);
-                    })),
-            )
-            .child(
-                div().text_sm().text_color(rgb(theme::MUTED))
-                    .child("Applies immediately for your user account. Install Yaplay in a permanent location first."),
-            )
-            .when(!self.startup_error.is_empty(), |form| {
-                form.child(div().text_sm().text_color(rgb(0xff8c8c)).child(self.startup_error.clone()))
-            })
-            .child(div().text_lg().child("Overlay settings"));
-        form = form.child(
-            div().flex().flex_col().gap_2().child("Display").child(
-                Select::new(&self.display)
-                    .icon(gpui_component::Icon::default().path("icons/chevrons-up-down.svg"))
-                    .w_full(),
-            ),
-        );
-        let arranging = app_state().read().unwrap().arranging;
-        form = form.child(
+fn note(text: impl Into<SharedString>) -> Div {
+    div()
+        .text_sm()
+        .text_color(rgb(theme::MUTED))
+        .child(text.into())
+}
+
+fn card() -> Div {
+    div()
+        .flex()
+        .flex_col()
+        .gap_3()
+        .p_4()
+        .rounded_lg()
+        .border_1()
+        .border_color(rgb(theme::BORDER))
+        .bg(rgb(theme::SURFACE))
+}
+
+fn preference_row(title: &'static str, detail: &'static str, control: impl IntoElement) -> Div {
+    div()
+        .flex()
+        .items_center()
+        .gap_4()
+        .child(
             div()
+                .flex_1()
+                .min_w_0()
                 .flex()
                 .flex_col()
-                .gap_2()
-                .child(
-                    Switch::new("arrange-panels")
-                        .label("Move panels freely")
-                        .checked(arranging)
-                        .on_click(cx.listener(|_, value, _, cx| {
-                            crate::windows::set_arranging(cx, *value)
-                        })),
-                )
-                .child(
-                    div()
-                        .text_sm()
-                        .text_color(rgb(theme::MUTED))
-                        .child("Drag the controls, voice panel, and notifications anywhere. Positions save automatically."),
-                ),
-        );
-        form = form
-            .child(
-                Switch::new("notifications")
-                    .label("Notifications")
-                    .checked(self.config.notifications_enabled)
-                    .on_click(cx.listener(|this, value, _, cx| {
-                        this.config.notifications_enabled = *value;
-                        cx.notify();
-                    })),
-            )
-            .child(
-                div()
-                    .flex()
-                    .flex_col()
-                    .gap_2()
-                    .child("Connection port")
-                    .child(Input::new(&self.port)),
-            )
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(rgb(theme::MUTED))
-                    .child("Use the same port in your Yapin integration."),
-            )
-            .child(div().text_lg().child("Appearance"))
-            .child(
-                div()
-                    .p_3()
-                    .rounded(px(preview.radius as f32))
-                    .bg(preview.surface())
-                    .child(user_cell(
-                        &VoiceMember {
-                            id: "preview".into(),
-                            name: "Yapin friend".into(),
-                            avatar_url: None,
-                            color: (180, 120, 100),
-                            speaking: true,
-                            muted: false,
-                            is_self: false,
-                        },
-                        false,
-                        &preview,
-                        cx,
-                    )),
-            );
+                .gap_1()
+                .child(title)
+                .child(note(detail)),
+        )
+        .child(div().flex_shrink_0().child(control))
+}
+
+fn group(title: &'static str, contents: Div) -> Div {
+    div()
+        .flex()
+        .flex_col()
+        .gap_2()
+        .child(div().font_weight(FontWeight::SEMIBOLD).child(title))
+        .child(contents)
+}
+
+impl Settings {
+    fn general(&self, cx: &Context<Self>) -> Div {
+        let startup = card()
+            .child(preference_row(
+                "Start Yaplay when I sign in",
+                "Applies immediately. Install Yaplay in a permanent location first.",
+                Switch::new("start-at-login")
+                    .checked(self.start_at_login.unwrap_or(false))
+                    .disabled(self.start_at_login.is_none())
+                    .on_click(
+                        cx.listener(|this, value, _, cx| this.set_start_at_login(*value, cx)),
+                    ),
+            ))
+            .when(!self.startup_error.is_empty(), |d| {
+                d.child(note(self.startup_error.clone()).text_color(rgb(0xff8c8c)))
+            });
+        let connection = card().child(preference_row(
+            "WebSocket port",
+            "Use the same port in your Yapin integration.",
+            div().w(px(94.0)).child(Input::new(&self.port)),
+        ));
+        div()
+            .flex()
+            .flex_col()
+            .gap_5()
+            .child(group("Startup", startup))
+            .child(group("Connection", connection))
+    }
+
+    fn overlay(&self, cx: &Context<Self>) -> Div {
         let mut corners = div().flex().flex_wrap().gap_2();
         for corner in Corner::ALL {
             corners = corners.child(
                 Button::new(SharedString::from(corner.name()))
                     .label(corner.name())
-                    .when(style.position == corner, |b| b.primary())
+                    .when(self.config.appearance.position == corner, |b| b.primary())
                     .on_click(cx.listener(move |this, _, _, cx| {
                         this.config.appearance.position = corner;
                         this.reset_panels = true;
@@ -409,14 +403,96 @@ impl Render for Settings {
                     })),
             );
         }
-        form = form.child(
-            div()
-                .flex()
-                .flex_col()
-                .gap_2()
-                .child("Roster corner")
-                .child(corners),
+
+        let arranging = app_state().read().unwrap().arranging;
+        div()
+            .flex()
+            .flex_col()
+            .gap_5()
+            .child(group(
+                "Display",
+                card().child(
+                    Select::new(&self.display)
+                        .icon(gpui_component::Icon::default().path("icons/chevrons-up-down.svg"))
+                        .w_full(),
+                ),
+            ))
+            .child(group(
+                "Panel placement",
+                card()
+                    .child("Roster corner")
+                    .child(corners)
+                    .child(note(
+                        "Choosing a corner resets the voice and notification positions.",
+                    ))
+                    .child(div().h(px(1.0)).bg(rgb(theme::BORDER)))
+                    .child(preference_row(
+                        "Move panels freely",
+                        "Drag panels on screen to reposition them. Positions save automatically.",
+                        Switch::new("arrange-panels").checked(arranging).on_click(
+                            cx.listener(|_, value, _, cx| windows::set_arranging(cx, *value)),
+                        ),
+                    )),
+            ))
+            .child(group(
+                "Notifications",
+                card().child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .justify_between()
+                        .child("Show notifications")
+                        .child(
+                            Switch::new("notifications")
+                                .checked(self.config.notifications_enabled)
+                                .on_click(cx.listener(|this, value, _, cx| {
+                                    this.config.notifications_enabled = *value;
+                                    cx.notify();
+                                })),
+                        ),
+                ),
+            ))
+    }
+
+    fn appearance_page(&self, cx: &mut Context<Self>) -> Div {
+        let mut preview = self.appearance(cx);
+        preview.normalize();
+        let members = [
+            VoiceMember {
+                id: "self".into(),
+                name: "Alex".into(),
+                avatar_url: None,
+                color: (106, 121, 154),
+                speaking: false,
+                muted: true,
+                is_self: true,
+            },
+            VoiceMember {
+                id: "friend".into(),
+                name: "Yapin friend".into(),
+                avatar_url: None,
+                color: (180, 120, 100),
+                speaking: true,
+                muted: false,
+                is_self: false,
+            },
+        ];
+        let display = windows::display_bounds(cx).size;
+        let layout = roster_layout(
+            &members,
+            &preview,
+            (display.width.into(), display.height.into()),
+            preview.margin as f32,
         );
+        let preview_panel = card().items_center().bg(rgb(theme::BORDER)).child(
+            div()
+                .w(layout.size.width)
+                .max_w_full()
+                .h(layout.size.height)
+                .child(roster_panel(&layout, false, &preview, false, cx)),
+        );
+        let style = &self.config.appearance;
+        let mut roster = card();
         for (name, value, setter) in [
             (
                 "Compact rows",
@@ -443,109 +519,265 @@ impl Render for Settings {
                 s.speakers_first = v
             }),
         ] {
-            form = form.child(
-                Switch::new(name)
-                    .label(name)
-                    .checked(value)
-                    .on_click(cx.listener(move |this, value, _, cx| {
-                        setter(&mut this.config.appearance, *value);
+            roster = roster.child(
+                div()
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .gap_3()
+                    .child(name)
+                    .child(Switch::new(name).checked(value).on_click(cx.listener(
+                        move |this, value, _, cx| {
+                            setter(&mut this.config.appearance, *value);
+                            cx.notify();
+                        },
+                    ))),
+            );
+        }
+
+        let mut palette = card().child(note("Enter colors in #RRGGBB format."));
+        for (input, name) in self
+            .colors
+            .iter()
+            .zip(["Background", "Text", "Speaking highlight"])
+        {
+            let value = input.read(cx).value();
+            let color = parse_color(value.trim()).map(|(r, g, b)| gpui::Rgba {
+                r: r as f32 / 255.,
+                g: g as f32 / 255.,
+                b: b as f32 / 255.,
+                a: 1.,
+            });
+            palette = palette.child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_3()
+                    .child(
+                        div()
+                            .size(px(18.))
+                            .rounded_md()
+                            .border_1()
+                            .border_color(rgb(theme::BORDER))
+                            .when_some(color, |d, c| d.bg(c)),
+                    )
+                    .child(div().flex_1().child(name))
+                    .child(div().w(px(124.)).child(Input::new(input))),
+            );
+        }
+        let mut dimensions = card();
+        for ((name, _, _), slider) in RANGES.iter().zip(&self.sliders) {
+            dimensions = dimensions.child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap_1()
+                    .child(
+                        div().flex().justify_between().child(*name).child(
+                            note(format!("{}", slider.read(cx).value().start() as u16))
+                                .text_color(rgb(theme::ACCENT)),
+                        ),
+                    )
+                    .child(Slider::new(slider)),
+            );
+        }
+        div()
+            .flex()
+            .flex_col()
+            .gap_5()
+            .child(group("Roster preview", preview_panel))
+            .child(group("Colors", palette))
+            .child(group("Size and spacing", dimensions))
+            .child(group("Roster details", roster))
+            .child(
+                Button::new("reset")
+                    .label("Reset appearance")
+                    .on_click(cx.listener(Self::reset)),
+            )
+    }
+
+    fn updates(&self, cx: &Context<Self>) -> Div {
+        div()
+            .flex()
+            .flex_col()
+            .gap_5()
+            .child(group(
+                "Installed version",
+                card().child(crate::updater::panel(cx)),
+            ))
+            .child(group(
+                "Preferences",
+                card().child(preference_row(
+                    "Automatically check for updates",
+                    "Check GitHub every six hours. You choose when to download and restart.",
+                    Switch::new("automatic-update-checks")
+                        .checked(self.config.automatic_update_checks)
+                        .on_click(cx.listener(|this, value, _, cx| {
+                            this.config.automatic_update_checks = *value;
+                            cx.notify();
+                        })),
+                )),
+            ))
+    }
+}
+
+impl Render for Settings {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let mut navigation = div().flex().flex_col().gap_1();
+        for section in [
+            Section::General,
+            Section::Overlay,
+            Section::Appearance,
+            Section::Updates,
+        ] {
+            let active = self.section == section;
+            let tint = if active { theme::ACCENT } else { theme::MUTED };
+            let button_style = if active {
+                ButtonCustomVariant::new(cx)
+                    .color(rgb(0x39302e).into())
+                    .hover(rgb(0x514039).into())
+                    .active(rgb(0x60483e).into())
+            } else {
+                ButtonCustomVariant::new(cx)
+                    .hover(rgb(theme::BORDER).into())
+                    .active(rgb(0x41414c).into())
+            };
+            navigation = navigation.child(
+                Button::new(section.title())
+                    .custom(button_style)
+                    .w_full()
+                    .h(px(38.0))
+                    .px_3()
+                    .justify_start()
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_3()
+                            .text_color(rgb(tint))
+                            .when(active, |row| row.font_weight(FontWeight::SEMIBOLD))
+                            .child(
+                                svg()
+                                    .path(section.icon())
+                                    .size(px(18.0))
+                                    .text_color(rgb(tint)),
+                            )
+                            .child(section.title()),
+                    )
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.section = section;
                         cx.notify();
                     })),
             );
         }
-        for (index, (name, _, _)) in RANGES.iter().enumerate() {
-            form = form.child(
-                div()
-                    .flex()
-                    .flex_col()
-                    .gap_2()
-                    .child(format!(
-                        "{name}: {}",
-                        self.sliders[index].read(cx).value().start() as u16
-                    ))
-                    .child(Slider::new(&self.sliders[index])),
-            );
-        }
-        for (index, name) in ["Background color", "Text color", "Speaking highlight"]
-            .iter()
-            .enumerate()
-        {
-            form = form.child(
-                div()
-                    .flex()
-                    .flex_col()
-                    .gap_2()
-                    .child(*name)
-                    .child(Input::new(&self.colors[index])),
-            );
-        }
-        form=form.child(div().text_sm().text_color(rgb(theme::MUTED)).child("Colors use #RRGGBB. Large calls show +N more. Choosing a corner resets the voice and notification positions."))
-            .child(Button::new("reset").label("Reset appearance").on_click(cx.listener(Self::reset)));
+        let page = match self.section {
+            Section::General => self.general(cx),
+            Section::Overlay => self.overlay(cx),
+            Section::Appearance => self.appearance_page(cx),
+            Section::Updates => self.updates(cx),
+        };
         let running = cx.global::<Desktop>().overlay.is_some();
         div()
             .size_full()
             .flex()
-            .flex_col()
-            .gap(px(20.0))
             .bg(rgb(theme::BACKGROUND))
             .text_color(rgb(theme::TEXT))
-            .p(px(24.0))
-            .pt(px(48.0))
             .child(
                 div()
+                    .w(px(184.0))
                     .flex_shrink_0()
                     .flex()
                     .flex_col()
-                    .gap_2()
+                    .px_3()
+                    .pt(px(48.))
+                    .pb_4()
+                    .bg(rgb(theme::SURFACE))
+                    .border_r_1()
+                    .border_color(rgb(theme::BORDER))
                     .child(
-                        svg()
-                            .path("wordmark.svg")
-                            .w(px(155.0))
-                            .h(px(36.0))
-                            .text_color(rgb(theme::ACCENT)),
+                        div().px_3().pb_6().child(
+                            svg()
+                                .path("wordmark.svg")
+                                .w(px(126.0))
+                                .h(px(28.))
+                                .text_color(rgb(theme::ACCENT)),
+                        ),
                     )
+                    .child(navigation)
+                    .child(div().flex_1())
                     .child(
                         div()
-                            .text_color(rgb(theme::MUTED))
-                            .child("An unofficial overlay for Yapin."),
+                            .border_t_1()
+                            .border_color(rgb(theme::BORDER))
+                            .pt_3()
+                            .px_2()
+                            .flex()
+                            .items_center()
+                            .justify_between()
+                            .child(note("Show controls").text_xs())
+                            .child(
+                                div()
+                                    .px_1p5()
+                                    .py_0p5()
+                                    .rounded_md()
+                                    .border_1()
+                                    .border_color(rgb(theme::BORDER))
+                                    .text_xs()
+                                    .text_color(rgb(theme::MUTED))
+                                    .child(if cfg!(target_os = "macos") {
+                                        "⌘ ⇧ Y"
+                                    } else {
+                                        "Ctrl ⇧ Y"
+                                    }),
+                            ),
                     ),
             )
             .child(
                 div()
-                    .id("settings-scroll")
                     .flex_1()
-                    .min_h_0()
-                    .overflow_y_scroll()
-                    .child(form),
-            )
-            .child(
-                div()
-                    .flex_shrink_0()
+                    .min_w_0()
                     .flex()
                     .flex_col()
-                    .gap_2()
-                    .when(!self.error.is_empty(), |d| {
-                        d.child(
-                            div()
-                                .text_color(rgb(0xff8c8c))
-                                .text_sm()
-                                .child(self.error.clone()),
-                        )
-                    })
+                    .pt(px(48.))
                     .child(
-                        Button::new("save")
-                            .primary()
-                            .w_full()
-                            .label(if running { "Save" } else { "Start" })
-                            .on_click(cx.listener(Self::save)),
+                        div()
+                            .px_6()
+                            .pb_5()
+                            .text_size(px(27.0))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child(self.section.title()),
                     )
-                    .child(div().text_sm().text_color(rgb(theme::MUTED)).child(
-                        if cfg!(target_os = "macos") {
-                            "⌘ ⇧ Y  ·  Show controls"
-                        } else {
-                            "Ctrl Shift Y  ·  Show controls"
-                        },
-                    )),
+                    .child(
+                        div()
+                            .id(("settings-page", self.section as usize))
+                            .min_h_0()
+                            .flex_1()
+                            .overflow_y_scroll()
+                            .child(div().px_6().pb_6().child(page)),
+                    )
+                    .child(
+                        div()
+                            .flex_shrink_0()
+                            .flex()
+                            .items_center()
+                            .gap_3()
+                            .px_6()
+                            .py_3()
+                            .border_t_1()
+                            .border_color(rgb(theme::BORDER))
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .min_w_0()
+                                    .child(note(self.error.clone()).text_color(rgb(0xff8c8c))),
+                            )
+                            .child(
+                                Button::new("save")
+                                    .primary()
+                                    .label(if running { "Save" } else { "Start" })
+                                    .on_click(cx.listener(Self::save)),
+                            ),
+                    ),
             )
     }
 }
