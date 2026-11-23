@@ -148,6 +148,7 @@ fn panel_size(panel: Panel, snapshot: &OverlaySnapshot, display: Size<Pixels>) -
         Panel::Notifications => notifications::window_size(
             snapshot.notifications.len(),
             &snapshot.appearance,
+            &snapshot.notification_style,
             viewport,
             snapshot.arranging,
         ),
@@ -393,7 +394,9 @@ pub fn sync(cx: &mut App) {
     let has_controls = desktop.controls.is_some();
     let has_roster = desktop.roster.is_some();
     let has_notifications = desktop.notifications.is_some();
-    let want_roster = snapshot.in_call || snapshot.arranging;
+    let want_roster = snapshot.arranging
+        || snapshot.in_call
+            && (!snapshot.appearance.speakers_only || !snapshot.voice_members.is_empty());
     let want_notifications = !snapshot.notifications.is_empty() || snapshot.arranging;
 
     if snapshot.arranging

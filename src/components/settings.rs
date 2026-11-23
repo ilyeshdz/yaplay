@@ -5,6 +5,7 @@ use crate::{
         configuration::Configuration,
         layout::{Layout, Panel},
     },
+    hotkey::{self, Action as ShortcutAction, Registry},
     state::{VoiceMember, app_state},
     theme,
     windows::{self, Desktop},
@@ -73,6 +74,10 @@ impl Section {
 
 pub struct Settings {
     section: Section,
+    recorder_focus: FocusHandle,
+    recording: Option<ShortcutAction>,
+    typing: bool,
+    shortcut_text: Entity<InputState>,
     display: Entity<SelectState<Vec<DisplayChoice>>>,
     config: Configuration,
     port: Entity<InputState>,
@@ -96,7 +101,30 @@ impl Settings {
         let port = cx
             .new(|cx| InputState::new(window, cx).default_value(config.websocket_port.to_string()));
         let style = &config.appearance;
-        let mut subscriptions = vec![];
+        let shortcut_text = cx.new(|cx| InputState::new(window, cx).placeholder("Ctrl+Shift+M"));
+        let mut subscriptions = vec![cx.observe_window_activation(window, |this, window, cx| {
+            if !window.is_window_active() && !this.typing {
+                this.end_recording(cx);
+            }
+        })];
+        // Intercept before application bindings such as Quit can consume the chord.
+        let settings = cx.weak_entity();
+        let settings_window = window.window_handle();
+        subscriptions.push(cx.intercept_keystrokes(move |event, window, cx| {
+            if window.window_handle() == settings_window {
+                let _ = settings.update(cx, |this, cx| {
+                    if this.recording.is_some() && !this.typing {
+                        cx.stop_propagation();
+                        window.prevent_default();
+                        if event.keystroke.key == "escape" {
+                            this.end_recording(cx);
+                        } else {
+                            this.accept_shortcut(hotkey::recorded(&event.keystroke), cx);
+                        }
+                    }
+                });
+            }
+        }));
         let primary = cx.primary_display().map(|d| u32::from(d.id()));
         let choices: Vec<_> = cx
             .displays()
@@ -183,6 +211,10 @@ impl Settings {
         };
         Self {
             section: Section::General,
+            recorder_focus: cx.focus_handle(),
+            recording: None,
+            typing: false,
+            shortcut_text,
             start_at_login,
             startup_error,
             reset_panels: false,
@@ -271,12 +303,21 @@ impl Settings {
             ..self.config.clone()
         };
         let result = (|| -> anyhow::Result<()> {
-            crate::websocket::start_server(port, app_state()).map_err(anyhow::Error::msg)?;
-            if let Err(error) = next.save() {
-                let _ = crate::websocket::start_server(old.websocket_port, app_state());
-                return Err(error.into());
+            hotkey::ensure_registry(cx)?;
+            cx.global_mut::<Registry>().apply(&next.shortcuts, || {
+                crate::websocket::start_server(port, app_state()).map_err(anyhow::Error::msg)?;
+                if let Err(error) = next.save() {
+                    let _ = crate::websocket::start_server(old.websocket_port, app_state());
+                    return Err(error.into());
+                }
+                Ok(())
+            })?;
+            {
+                let shared = app_state();
+                let mut state = shared.write().unwrap();
+                state.config = next;
+                state.prune_notifications();
             }
-            app_state().write().unwrap().config = next;
             windows::open_overlay(cx)?;
             Ok(())
         })();
@@ -351,6 +392,42 @@ fn preference_row(title: &'static str, detail: &'static str, control: impl IntoE
         .child(div().flex_shrink_0().child(control))
 }
 
+fn number_preference(
+    title: &'static str,
+    value: u8,
+    range: std::ops::RangeInclusive<u8>,
+    cx: &Context<Settings>,
+    set: fn(&mut Settings, u8),
+) -> Div {
+    let mut controls = div().flex().items_center().gap_2();
+    for (index, label, next) in [
+        (0usize, "−", value.checked_sub(1)),
+        (1, "+", value.checked_add(1)),
+    ] {
+        if index == 1 {
+            controls = controls.child(value.to_string());
+        }
+        let next = next.filter(|n| range.contains(n));
+        controls = controls.child(
+            Button::new((title, index))
+                .label(label)
+                .disabled(next.is_none())
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    if let Some(next) = next {
+                        set(this, next);
+                        cx.notify();
+                    }
+                })),
+        );
+    }
+    div()
+        .flex()
+        .items_center()
+        .justify_between()
+        .child(title)
+        .child(controls)
+}
+
 fn group(title: &'static str, contents: Div) -> Div {
     div()
         .flex()
@@ -361,6 +438,132 @@ fn group(title: &'static str, contents: Div) -> Div {
 }
 
 impl Settings {
+    fn end_recording(&mut self, cx: &mut Context<Self>) {
+        if self.recording.take().is_some() {
+            self.typing = false;
+            if cx.has_global::<Registry>() {
+                cx.global_mut::<Registry>().recorder = None;
+            }
+            cx.notify();
+        }
+    }
+
+    pub fn accept_shortcut(&mut self, value: String, cx: &mut Context<Self>) {
+        let Some(action) = self.recording else { return };
+        let mut draft = self.config.shortcuts.clone();
+        draft.set(action, value);
+        match hotkey::ensure_registry(cx)
+            .and_then(|()| cx.global::<Registry>().check(&draft, action))
+        {
+            Ok(()) => {
+                self.config.shortcuts = draft;
+                self.error.clear();
+                self.end_recording(cx);
+            }
+            Err(error) => self.error = error.to_string(),
+        }
+        cx.notify();
+    }
+
+    fn shortcuts(&self, cx: &Context<Self>) -> Div {
+        let mut rows = card();
+        for action in ShortcutAction::ALL {
+            let mut buttons = div().flex().gap_2().child(
+                Button::new(("record", action as usize))
+                    .label(
+                        self.config
+                            .shortcuts
+                            .get(action)
+                            .unwrap_or("Set shortcut")
+                            .to_owned(),
+                    )
+                    .on_click(cx.listener(move |this, _, window, cx| {
+                        this.recording = Some(action);
+                        this.typing = false;
+                        this.error.clear();
+                        if let Err(error) = hotkey::ensure_registry(cx) {
+                            this.error = error.to_string();
+                        } else {
+                            cx.global_mut::<Registry>().recorder = Some(cx.weak_entity());
+                        }
+                        this.recorder_focus.focus(window);
+                        cx.notify();
+                    })),
+            );
+            if action != ShortcutAction::Controls && self.config.shortcuts.get(action).is_some() {
+                buttons = buttons.child(
+                    Button::new(("clear", action as usize))
+                        .label("Clear")
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            match action {
+                                ShortcutAction::Mute => this.config.shortcuts.mute = None,
+                                ShortcutAction::Deafen => this.config.shortcuts.deafen = None,
+                                _ => {}
+                            }
+                            this.end_recording(cx);
+                            this.error.clear();
+                            cx.notify();
+                        })),
+                );
+            }
+            rows = rows.child(
+                div()
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .child(action.label())
+                    .child(buttons),
+            );
+            if self.recording == Some(action) {
+                let mut editor = div().flex().flex_wrap().items_center().gap_2();
+                if self.typing {
+                    editor = editor
+                        .child(Input::new(&self.shortcut_text).w(px(170.0)))
+                        .child(
+                            Button::new("check-shortcut")
+                                .label("Use shortcut")
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.accept_shortcut(
+                                        this.shortcut_text.read(cx).value().trim().to_owned(),
+                                        cx,
+                                    );
+                                })),
+                        );
+                } else {
+                    editor = editor.child(note("Press a key combination…")).child(
+                        Button::new("type-shortcut")
+                            .label("Type instead")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.typing = true;
+                                if cx.has_global::<Registry>() {
+                                    cx.global_mut::<Registry>().recorder = None;
+                                }
+                                this.shortcut_text.update(cx, |input, cx| {
+                                    input.set_value("", window, cx);
+                                    input.focus(window, cx);
+                                });
+                                cx.notify();
+                            })),
+                    );
+                }
+                rows = rows.child(
+                    editor.child(Button::new("cancel-shortcut").label("Cancel").on_click(
+                        cx.listener(|this, _, _, cx| {
+                            this.end_recording(cx);
+                            this.error.clear();
+                        }),
+                    )),
+                );
+            }
+        }
+        group(
+            "Global shortcuts",
+            rows.child(note(
+                "Mute and deafen require a call with a compatible integration.",
+            )),
+        )
+    }
+
     fn general(&self, cx: &Context<Self>) -> Div {
         let startup = card()
             .child(preference_row(
@@ -387,9 +590,11 @@ impl Settings {
             .gap_5()
             .child(group("Startup", startup))
             .child(group("Connection", connection))
+            .child(self.shortcuts(cx))
     }
 
     fn overlay(&self, cx: &Context<Self>) -> Div {
+        let notes = &self.config.notifications;
         let mut corners = div().flex().flex_wrap().gap_2();
         for corner in Corner::ALL {
             corners = corners.child(
@@ -436,28 +641,53 @@ impl Settings {
             ))
             .child(group(
                 "Notifications",
-                card().child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .justify_between()
-                        .child("Show notifications")
-                        .child(
-                            Switch::new("notifications")
-                                .checked(self.config.notifications_enabled)
-                                .on_click(cx.listener(|this, value, _, cx| {
-                                    this.config.notifications_enabled = *value;
-                                    cx.notify();
-                                })),
-                        ),
-                ),
+                card()
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .justify_between()
+                            .child("Show notifications")
+                            .child(
+                                Switch::new("notifications")
+                                    .checked(self.config.notifications_enabled)
+                                    .on_click(cx.listener(|this, value, _, cx| {
+                                        this.config.notifications_enabled = *value;
+                                        cx.notify();
+                                    })),
+                            ),
+                    )
+                    .child(number_preference(
+                        "Display time (seconds)",
+                        notes.seconds,
+                        1..=30,
+                        cx,
+                        |s, v| s.config.notifications.seconds = v,
+                    ))
+                    .child(number_preference(
+                        "Maximum cards",
+                        notes.limit,
+                        1..=5,
+                        cx,
+                        |s, v| s.config.notifications.limit = v,
+                    ))
+                    .child(preference_row(
+                        "Titles only",
+                        "Hide the notification body.",
+                        Switch::new("title-only")
+                            .checked(notes.title_only)
+                            .on_click(cx.listener(|this, value, _, cx| {
+                                this.config.notifications.title_only = *value;
+                                cx.notify();
+                            })),
+                    )),
             ))
     }
 
     fn appearance_page(&self, cx: &mut Context<Self>) -> Div {
         let mut preview = self.appearance(cx);
         preview.normalize();
-        let members = [
+        let mut members = vec![
             VoiceMember {
                 id: "self".into(),
                 name: "Alex".into(),
@@ -477,6 +707,7 @@ impl Settings {
                 is_self: false,
             },
         ];
+        members.retain(|m| !preview.speakers_only || m.speaking);
         let display = windows::display_bounds(cx).size;
         let layout = roster_layout(
             &members,
@@ -515,6 +746,9 @@ impl Settings {
                 s.show_header = v
             }),
             ("Show yourself", style.show_self, |s, v| s.show_self = v),
+            ("Speakers only", style.speakers_only, |s, v| {
+                s.speakers_only = v
+            }),
             ("Active speakers first", style.speakers_first, |s, v| {
                 s.speakers_first = v
             }),
@@ -533,6 +767,16 @@ impl Settings {
                         },
                     ))),
             );
+        }
+
+        if style.speakers_only {
+            roster = roster.child(number_preference(
+                "Keep after speaking (seconds)",
+                style.speaker_hold_seconds,
+                0..=10,
+                cx,
+                |s, v| s.config.appearance.speaker_hold_seconds = v,
+            ));
         }
 
         let mut palette = card().child(note("Enter colors in #RRGGBB format."));
@@ -665,6 +909,7 @@ impl Render for Settings {
                             .child(section.title()),
                     )
                     .on_click(cx.listener(move |this, _, _, cx| {
+                        this.end_recording(cx);
                         this.section = section;
                         cx.notify();
                     })),
@@ -678,6 +923,7 @@ impl Render for Settings {
         };
         let running = cx.global::<Desktop>().overlay.is_some();
         div()
+            .track_focus(&self.recorder_focus)
             .size_full()
             .flex()
             .bg(rgb(theme::BACKGROUND))
@@ -724,11 +970,7 @@ impl Render for Settings {
                                     .border_color(rgb(theme::BORDER))
                                     .text_xs()
                                     .text_color(rgb(theme::MUTED))
-                                    .child(if cfg!(target_os = "macos") {
-                                        "⌘ ⇧ Y"
-                                    } else {
-                                        "Ctrl ⇧ Y"
-                                    }),
+                                    .child(self.config.shortcuts.controls.clone()),
                             ),
                     ),
             )
@@ -773,6 +1015,7 @@ impl Render for Settings {
                             )
                             .child(
                                 Button::new("save")
+                                    .disabled(self.recording.is_some())
                                     .primary()
                                     .label(if running { "Save" } else { "Start" })
                                     .on_click(cx.listener(Self::save)),

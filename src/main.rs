@@ -35,15 +35,6 @@ fn main() {
             ),
             KeyBinding::new(
                 if cfg!(target_os = "macos") {
-                    "cmd-shift-y"
-                } else {
-                    "ctrl-shift-y"
-                },
-                ToggleControls,
-                None,
-            ),
-            KeyBinding::new(
-                if cfg!(target_os = "macos") {
                     "cmd-q"
                 } else {
                     "ctrl-q"
@@ -63,9 +54,6 @@ fn main() {
         }]);
         cx.set_global(windows::Desktop::default());
         cx.set_global(components::user_cell::AvatarCache::default());
-        if let Err(error) = hotkey::register() {
-            eprintln!("Global shortcut: {error}");
-        }
         cx.on_window_closed(|cx| {
             let remaining = cx.windows();
             if let Some(settings) = cx.global::<windows::Desktop>().settings
@@ -81,6 +69,11 @@ fn main() {
         })
         .detach();
         let saved = data::configuration::Configuration::load().ok();
+        let shortcuts = saved
+            .as_ref()
+            .map(|config| config.shortcuts.clone())
+            .unwrap_or_default();
+        let shortcut_error = hotkey::init(cx, &shortcuts).err();
         let started = saved.is_some_and(|config| {
             state::app_state().write().unwrap().config = config.clone();
             match websocket::start_server(config.websocket_port, state::app_state()) {
@@ -92,7 +85,11 @@ fn main() {
             }
         });
         updater::init(cx);
-        if !started {
+        if let Some(error) = shortcut_error {
+            state::app_state().write().unwrap().startup_error =
+                Some(format!("Global shortcuts: {error}"));
+            windows::open_settings(cx);
+        } else if !started {
             windows::open_settings(cx);
         }
         cx.spawn(async move |cx| {
@@ -103,9 +100,7 @@ fn main() {
                     .await;
                 if cx
                     .update(|cx| {
-                        if hotkey::take_toggle_press() {
-                            windows::toggle_controls(cx);
-                        }
+                        hotkey::dispatch(cx);
                         let snapshot = {
                             let shared = state::app_state();
                             let mut state = shared.write().unwrap();

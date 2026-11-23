@@ -2,7 +2,7 @@
 title: "Customize the overlay"
 ---
 
-Press **Cmd+Shift+Y** on macOS or **Ctrl+Shift+Y** on Windows, then select the settings gear. Choose **Appearance** in the sidebar for colors, sizing, and roster details. Choose **Overlay** for the display and panel placement. The preview updates while you edit; **Save** applies the settings to the running overlay and remembers them for next launch. Closing the settings window discards unsaved edits.
+By default, press **Cmd+Shift+Y** on macOS or **Ctrl+Shift+Y** on Windows, then select the settings gear. Choose **Appearance** in the sidebar for colors, sizing, and roster details. Choose **Overlay** for the display and panel placement. The preview updates while you edit; **Save** applies the settings to the running overlay and remembers them for next launch. Closing the settings window discards unsaved edits.
 
 | Setting | Options |
 | --- | --- |
@@ -27,6 +27,20 @@ Press **Cmd+Shift+Y** on macOS or **Ctrl+Shift+Y** on Windows, then select the s
 Outside arrangement mode the voice panel is click-through. It displays only the configured number of people that fit vertically, with a **+N more** count for the rest. Active speakers are promoted into view when speaker prioritization is enabled. Names stay on one line and truncate with an ellipsis. Only visible rows load profile pictures.
 
 Notifications are their own click-through window, positioned from the opposite corner by default. They use the same colors, opacity, scale, and corners, and show only as many cards as fit. Long notification text is truncated. Roster and notification widths are constrained to separate halves of the screen. With no notifications, choose **Move panels freely** to drag the notification placeholder.
+
+## Speaker-only roster
+
+Turn on **Speakers only** in **Appearance → Roster details** to show people while they speak. **Keep after speaking** keeps their row visible for another 0–10 seconds (2 by default). The speaking highlight turns off as soon as they stop. The panel disappears when the last visible speaker's delay expires. **Show yourself**, speaker priority, and the maximum visible count still apply.
+
+## Notifications
+
+In **Overlay → Notifications**, choose a display time from 1–30 seconds and a maximum of 1–5 cards. Turn on **Titles only** for shorter cards that omit the message body. Saving a shorter duration or smaller limit also updates cards already on screen. Defaults are eight seconds, five cards, and full messages.
+
+## Global shortcuts
+
+In **General → Global shortcuts**, select a shortcut and press the new combination. Include a modifier key. If the system intercepts the combination before Yaplay receives it, select **Type instead**, enter it (for example, `Ctrl+Shift+M`), and select **Use shortcut** to check availability. **Save** activates your choices.
+
+Mute and deafen shortcuts are optional. They send the same requests as the control panel during a call with a compatible integration. Select **Clear** and save to release either shortcut.
 
 ## Profile pictures
 

@@ -3,11 +3,31 @@ use std::{io, path::PathBuf};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
+pub struct NotificationSettings {
+    pub seconds: u8,
+    pub limit: u8,
+    pub title_only: bool,
+}
+
+impl Default for NotificationSettings {
+    fn default() -> Self {
+        Self {
+            seconds: 8,
+            limit: 5,
+            title_only: false,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Configuration {
     pub appearance: super::appearance::Appearance,
     pub layout: super::layout::Layout,
     pub selected_monitor_id: u32,
     pub notifications_enabled: bool,
+    pub notifications: NotificationSettings,
+    pub shortcuts: crate::hotkey::Shortcuts,
     pub automatic_update_checks: bool,
     pub websocket_port: u16,
 }
@@ -19,6 +39,8 @@ impl Default for Configuration {
             layout: Default::default(),
             selected_monitor_id: 0,
             notifications_enabled: true,
+            notifications: Default::default(),
+            shortcuts: Default::default(),
             automatic_update_checks: true,
             websocket_port: 8080,
         }
@@ -57,6 +79,8 @@ impl Configuration {
             ));
         }
         config.appearance.normalize();
+        config.notifications.seconds = config.notifications.seconds.clamp(1, 30);
+        config.notifications.limit = config.notifications.limit.clamp(1, 5);
         Ok(config)
     }
 
