@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.6.0] (2026-11-23)
+
 ### Added
 
 - Call integrations can introduce themselves by name and optional plugin version in the [protocol v2 handshake](site/content/docs/protocol.mdx#protocol-v2). Yaplay replies with the actions it accepts on that connection.
