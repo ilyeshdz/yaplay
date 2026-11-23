@@ -23,7 +23,18 @@ export default async function Releases() {
         {releases.map(({ version, date, body }, index) => (
           <article className="release-entry" id={`v${version}`} key={version}>
             <header><h2>v{version}</h2>{index === 0 && <span className="release-badge">Latest</span>}<time dateTime={date}>{date}</time></header>
-            <div className="prose release-body"><Markdown>{body}</Markdown></div>
+            <div className="prose release-body">
+              <Markdown components={{
+                a: ({ href, children }) => {
+                  const doc = href?.match(/^site\/content\/docs\/(.+?)\.mdx([?#].*)?$/);
+                  if (doc) {
+                    const slug = doc[1] === 'index' ? '' : doc[1].replace(/\/index$/, '');
+                    return <Link href={`/docs/${slug}${doc[2] ?? ''}`}>{children}</Link>;
+                  }
+                  return <a href={href}>{children}</a>;
+                },
+              }}>{body}</Markdown>
+            </div>
             <a className="home-link" href={`${releaseUrl}/tag/v${version}`}>View release and downloads on GitHub ↗</a>
           </article>
         ))}
