@@ -9,7 +9,7 @@ Press **Cmd+Shift+Y** on macOS or **Ctrl+Shift+Y** on Windows, then select the s
 | Compact rows | Smaller avatars and less vertical space. |
 | Scale | 75–150% for text and avatars. |
 | Panel width | 180–400 logical pixels, scaled and constrained to the screen. |
-| Roster corner | Top left, top right, bottom left, or bottom right. |
+| Roster corner | Top left, top right, bottom left, or bottom right. Choosing a corner resets the saved voice and notification positions. |
 | Background opacity | 0–100%; text and avatars stay readable at full opacity. |
 | Corner radius | Square through rounded, 0–24 pixels. |
 | Screen margin | 8–80 pixels from the chosen edges. |
@@ -18,13 +18,15 @@ Press **Cmd+Shift+Y** on macOS or **Ctrl+Shift+Y** on Windows, then select the s
 | Active speakers first | Speakers first, then yourself, then the remaining roster in source order. Disable to preserve roster order. |
 | Background, text, speaking highlight | Any six-digit `#RRGGBB` color. |
 
+**Move panels freely** makes the voice panel and notifications interactive so you can drag them anywhere on any connected display; the controls have a drag grip and can always be moved. Positions save automatically and are restored on the next launch, per display. Choosing a roster corner or changing the display resets the voice and notification positions.
+
 **Reset appearance** restores the defaults in the form; press Save to apply them. Old settings files receive the new defaults automatically.
 
 ## Large calls
 
-The overlay stays click-through. It displays only the configured number of people that fit vertically, with a **+N more** count for the rest. Active speakers are promoted into view when speaker prioritization is enabled. Names stay on one line and truncate with an ellipsis. Only visible rows load profile pictures.
+Outside arrangement mode the voice panel is click-through. It displays only the configured number of people that fit vertically, with a **+N more** count for the rest. Active speakers are promoted into view when speaker prioritization is enabled. Names stay on one line and truncate with an ellipsis. Only visible rows load profile pictures.
 
-Notifications appear on the opposite side, use the same colors, opacity, scale, and corners, and show only as many cards as fit. Long notification text is truncated. Roster and notification widths are constrained to separate halves of the screen.
+Notifications are their own click-through window, positioned from the opposite corner by default. They use the same colors, opacity, scale, and corners, and show only as many cards as fit. Long notification text is truncated. Roster and notification widths are constrained to separate halves of the screen. With no notifications, choose **Move panels freely** to drag the notification placeholder.
 
 ## Profile pictures
 

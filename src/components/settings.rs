@@ -3,6 +3,7 @@ use crate::{
     data::{
         appearance::{Appearance, Corner, parse_color},
         configuration::Configuration,
+        layout::{Layout, Panel},
     },
     state::{VoiceMember, app_state},
     theme,
@@ -51,6 +52,8 @@ pub struct Settings {
     error: String,
     start_at_login: Option<bool>,
     startup_error: String,
+    /// Set when a corner or appearance reset should drop the saved panel positions.
+    reset_panels: bool,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -152,6 +155,7 @@ impl Settings {
         Self {
             start_at_login,
             startup_error,
+            reset_panels: false,
             display,
             config,
             port,
@@ -217,12 +221,19 @@ impl Settings {
             return;
         }
         style.normalize();
+        let old = app_state().read().unwrap().config.clone();
+        let mut layout = old.layout.clone();
+        if old.selected_monitor_id != self.config.selected_monitor_id {
+            layout = Layout::default();
+        } else if self.reset_panels {
+            layout.clear(&[Panel::Roster, Panel::Notifications]);
+        }
         let next = Configuration {
             websocket_port: port,
             appearance: style,
+            layout,
             ..self.config.clone()
         };
-        let old = app_state().read().unwrap().config.clone();
         let result = (|| -> anyhow::Result<()> {
             crate::websocket::start_server(port, app_state()).map_err(anyhow::Error::msg)?;
             if let Err(error) = next.save() {
@@ -265,6 +276,7 @@ impl Settings {
             input.update(cx, |s, cx| s.set_value(value.clone(), window, cx));
         }
         self.config.appearance = style;
+        self.reset_panels = true;
         cx.notify();
     }
 }
@@ -321,6 +333,27 @@ impl Render for Settings {
                     .w_full(),
             ),
         );
+        let arranging = app_state().read().unwrap().arranging;
+        form = form.child(
+            div()
+                .flex()
+                .flex_col()
+                .gap_2()
+                .child(
+                    Switch::new("arrange-panels")
+                        .label("Move panels freely")
+                        .checked(arranging)
+                        .on_click(cx.listener(|_, value, _, cx| {
+                            crate::windows::set_arranging(cx, *value)
+                        })),
+                )
+                .child(
+                    div()
+                        .text_sm()
+                        .text_color(rgb(theme::MUTED))
+                        .child("Drag the controls, voice panel, and notifications anywhere. Positions save automatically."),
+                ),
+        );
         form = form
             .child(
                 Switch::new("notifications")
@@ -374,6 +407,7 @@ impl Render for Settings {
                     .when(style.position == corner, |b| b.primary())
                     .on_click(cx.listener(move |this, _, _, cx| {
                         this.config.appearance.position = corner;
+                        this.reset_panels = true;
                         cx.notify();
                     })),
             );
@@ -448,7 +482,7 @@ impl Render for Settings {
                     .child(Input::new(&self.colors[index])),
             );
         }
-        form=form.child(div().text_sm().text_color(rgb(theme::MUTED)).child("Colors use #RRGGBB. Large calls show +N more. Notifications use the opposite side."))
+        form=form.child(div().text_sm().text_color(rgb(theme::MUTED)).child("Colors use #RRGGBB. Large calls show +N more. Choosing a corner resets the voice and notification positions."))
             .child(Button::new("reset").label("Reset appearance").on_click(cx.listener(Self::reset)));
         let running = cx.global::<Desktop>().overlay.is_some();
         div()

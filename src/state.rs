@@ -87,6 +87,8 @@ pub struct OverlaySnapshot {
     pub mic_muted: bool,
     pub deafened: bool,
     pub controls_open: bool,
+    /// Transient mode that makes the display-only panels draggable.
+    pub arranging: bool,
 }
 
 #[derive(Default)]
@@ -100,6 +102,8 @@ pub struct AppState {
     pub mic_muted: bool,
     pub deafened: bool,
     pub controls_open: bool,
+    /// Transient mode that makes the display-only panels draggable.
+    pub arranging: bool,
     next_notification_id: u64,
 }
 
@@ -168,6 +172,7 @@ impl AppState {
             mic_muted: self.mic_muted,
             deafened: self.deafened,
             controls_open: self.controls_open,
+            arranging: self.arranging,
         }
     }
 }

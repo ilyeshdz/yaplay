@@ -58,6 +58,7 @@ impl AssetSource for Assets {
             "icons/chevrons-up-down.svg" => include_bytes!("assets/icons/chevrons-up-down.svg"),
             "icons/check.svg" => include_bytes!("assets/icons/check.svg"),
             "icons/exit.svg" => include_bytes!("assets/icons/exit.svg"),
+            "icons/move.svg" => include_bytes!("assets/icons/move.svg"),
             _ => return Ok(None),
         };
         Ok(Some(std::borrow::Cow::Borrowed(bytes)))

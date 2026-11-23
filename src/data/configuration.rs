@@ -5,6 +5,7 @@ use std::{io, path::PathBuf};
 #[serde(default)]
 pub struct Configuration {
     pub appearance: super::appearance::Appearance,
+    pub layout: super::layout::Layout,
     pub selected_monitor_id: u32,
     pub notifications_enabled: bool,
     pub automatic_update_checks: bool,
@@ -15,6 +16,7 @@ impl Default for Configuration {
     fn default() -> Self {
         Self {
             appearance: Default::default(),
+            layout: Default::default(),
             selected_monitor_id: 0,
             notifications_enabled: true,
             automatic_update_checks: true,

@@ -8,7 +8,7 @@ use gpui_component::{
     button::{Button, ButtonCustomVariant, ButtonVariants},
 };
 
-pub const WIDTH: f32 = 296.0;
+pub const WIDTH: f32 = 354.0;
 pub const HEIGHT: f32 = 80.0;
 
 fn control_button(id: &'static str, cx: &App) -> Button {
@@ -29,6 +29,27 @@ fn control_button(id: &'static str, cx: &App) -> Button {
         )
 }
 
+fn drag_grip() -> impl IntoElement {
+    let mut grip = div()
+        .id("controls-grip")
+        .w(px(6.0))
+        .h(px(46.0))
+        .flex_shrink_0()
+        .flex()
+        .flex_col()
+        .justify_center()
+        .items_center()
+        .gap(px(4.0))
+        .cursor_grab()
+        .on_mouse_down(MouseButton::Left, |_, window, _| {
+            crate::windows::begin_window_drag(window)
+        });
+    for _ in 0..3 {
+        grip = grip.child(div().size(px(3.0)).rounded_full().bg(rgba(0xb4b1ba66)));
+    }
+    grip
+}
+
 pub struct Controls;
 impl Render for Controls {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -36,6 +57,7 @@ impl Render for Controls {
         let enabled = current.in_call && current.controls_available;
         let mic = current.mic_muted;
         let deaf = current.deafened;
+        let arranging = current.arranging;
         div()
             .size_full()
             .flex()
@@ -48,6 +70,7 @@ impl Render for Controls {
                     .p(px(12.0))
                     .rounded(px(14.0))
                     .bg(rgb(theme::SURFACE))
+                    .child(drag_grip())
                     .child(
                         control_button("mute", cx)
                             .icon(Icon::default().path(if mic {
@@ -97,6 +120,17 @@ impl Render for Controls {
                                     .unwrap()
                                     .request_control(ControlAction::LeaveCall {})
                             }),
+                    )
+                    .child(
+                        control_button("arrange", cx)
+                            .icon(Icon::default().path("icons/move.svg"))
+                            .tooltip(if arranging {
+                                "Done moving panels"
+                            } else {
+                                "Move panels"
+                            })
+                            .when(arranging, |b| b.primary())
+                            .on_click(|_, _, cx| crate::windows::toggle_arranging(cx)),
                     )
                     .child(
                         control_button("settings", cx)
