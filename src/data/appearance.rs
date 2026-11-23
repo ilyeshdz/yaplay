@@ -57,6 +57,8 @@ pub struct Appearance {
     pub show_names: bool,
     pub show_header: bool,
     pub show_self: bool,
+    pub speakers_only: bool,
+    pub speaker_hold_seconds: u8,
     pub speakers_first: bool,
     pub background: String,
     pub foreground: String,
@@ -79,6 +81,8 @@ impl Default for Appearance {
             show_header: true,
             show_self: true,
             speakers_first: true,
+            speakers_only: false,
+            speaker_hold_seconds: 2,
             background: "#1c1c22".into(),
             foreground: "#f3f1f0".into(),
             accent: "#ffb49b".into(),
@@ -88,6 +92,7 @@ impl Default for Appearance {
 
 impl Appearance {
     pub fn normalize(&mut self) {
+        self.speaker_hold_seconds = self.speaker_hold_seconds.min(10);
         self.scale = self.scale.clamp(75, 150);
         self.width = self.width.clamp(180, 400);
         self.opacity = self.opacity.min(100);

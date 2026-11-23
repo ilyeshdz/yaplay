@@ -108,7 +108,11 @@ pub fn roster_panel<'a>(
                 .items_center()
                 .text_size(px(13.0 * scale))
                 .text_color(style.text())
-                .child("No one in the call yet"),
+                .child(if style.speakers_only {
+                    "Waiting for a speaker"
+                } else {
+                    "No one in the call yet"
+                }),
         );
     } else {
         for member in &layout.visible {

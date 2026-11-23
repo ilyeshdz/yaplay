@@ -4,6 +4,10 @@
 
 ### Added
 
+- Show [speakers only](site/content/docs/appearance.mdx#speaker-only-roster), with an adjustable delay before quiet speakers disappear.
+- Choose the [notification duration, card limit, and title-only display](site/content/docs/appearance.mdx#notifications).
+- Record a [global shortcut](site/content/docs/appearance.mdx#global-shortcuts) for the controls and optional mute and deafen shortcuts for compatible calls.
+
 - Drag the controls, voice panel, and notifications anywhere on screen. Choose **Move panels freely** in settings or the move button in the controls, and Yaplay remembers each panel's position and display for the next launch.
 
 ### Changed

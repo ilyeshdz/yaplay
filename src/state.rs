@@ -1,3 +1,4 @@
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, OnceLock, RwLock};
 use std::time::{Duration, Instant};
 
@@ -14,10 +15,6 @@ pub fn app_state() -> SharedState {
         .get_or_init(|| Arc::new(RwLock::new(AppState::default())))
         .clone()
 }
-
-pub const MAX_NOTIFICATIONS: usize = 5;
-
-pub const NOTIFICATION_TTL: Duration = Duration::from_secs(8);
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VoiceMember {
@@ -37,13 +34,6 @@ pub struct Notification {
     pub title: String,
     pub body: String,
     pub created: Instant,
-    pub ttl: Duration,
-}
-
-impl Notification {
-    pub fn is_expired(&self) -> bool {
-        self.created.elapsed() >= self.ttl
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -80,6 +70,7 @@ pub enum ControlAction {
 #[derive(Clone, PartialEq, Eq, Default)]
 pub struct OverlaySnapshot {
     pub appearance: crate::data::appearance::Appearance,
+    pub notification_style: crate::data::configuration::NotificationSettings,
     pub controls_available: bool,
     pub in_call: bool,
     pub voice_members: Vec<VoiceMember>,
@@ -104,6 +95,7 @@ pub struct AppState {
     pub controls_open: bool,
     /// Transient mode that makes the display-only panels draggable.
     pub arranging: bool,
+    stopped_speaking: HashMap<String, Instant>,
     next_notification_id: u64,
 }
 
@@ -118,29 +110,57 @@ impl AppState {
         if !self.config.notifications_enabled {
             return;
         }
-        self.prune_notifications();
-        if self.notifications.len() >= MAX_NOTIFICATIONS {
-            self.notifications.remove(0);
-        }
         self.next_notification_id = self.next_notification_id.wrapping_add(1);
         self.notifications.push(Notification {
             id: self.next_notification_id,
             title: title.into(),
             body: body.into(),
             created: Instant::now(),
-            ttl: NOTIFICATION_TTL,
         });
+        self.prune_notifications();
     }
 
     pub fn prune_notifications(&mut self) {
+        if !self.config.notifications_enabled {
+            self.notifications.clear();
+            return;
+        }
+        let ttl = Duration::from_secs(self.config.notifications.seconds.into());
         self.notifications
-            .retain(|notification| !notification.is_expired());
+            .retain(|note| note.created.elapsed() < ttl);
+        let excess = self
+            .notifications
+            .len()
+            .saturating_sub(self.config.notifications.limit.into());
+        self.notifications.drain(..excess);
     }
 
     pub fn apply(&mut self, message: ServerMessage) {
         match message {
             ServerMessage::Hello { .. } => {}
             ServerMessage::VoiceState { in_call, members } => {
+                let previous: HashSet<_> = self
+                    .voice_members
+                    .iter()
+                    .filter(|m| m.speaking)
+                    .map(|m| m.id.as_str())
+                    .collect();
+                let mut held = std::mem::take(&mut self.stopped_speaking);
+                let now = Instant::now();
+                if in_call {
+                    for member in members.iter().filter(|m| !m.speaking) {
+                        let since = if previous.contains(member.id.as_str()) {
+                            Some(now)
+                        } else {
+                            held.remove(&member.id)
+                        };
+                        if let Some(since) =
+                            since.filter(|t| now.duration_since(*t) < Duration::from_secs(10))
+                        {
+                            self.stopped_speaking.insert(member.id.clone(), since);
+                        }
+                    }
+                }
                 self.in_call = in_call;
                 self.voice_members = if in_call { members } else { Vec::new() };
                 if !in_call {
@@ -162,13 +182,24 @@ impl AppState {
                 .as_ref()
                 .is_some_and(|client| !client.is_closed()),
             in_call: self.in_call,
-            voice_members: self.voice_members.clone(),
-            notifications: self
-                .notifications
+            voice_members: self
+                .voice_members
                 .iter()
-                .filter(|notification| !notification.is_expired())
+                .filter(|m| {
+                    !self.config.appearance.speakers_only
+                        || (self.config.appearance.show_self || !m.is_self)
+                            && (m.speaking
+                                || self.stopped_speaking.get(&m.id).is_some_and(|since| {
+                                    since.elapsed()
+                                        < Duration::from_secs(
+                                            self.config.appearance.speaker_hold_seconds.into(),
+                                        )
+                                }))
+                })
                 .cloned()
                 .collect(),
+            notification_style: self.config.notifications.clone(),
+            notifications: self.notifications.clone(),
             mic_muted: self.mic_muted,
             deafened: self.deafened,
             controls_open: self.controls_open,
@@ -207,6 +238,65 @@ mod tests {
     }
 
     #[test]
+    fn speaker_hold_starts_on_silence_and_ends_on_expiry_or_departure() {
+        let mut state = AppState::default();
+        state.config.appearance.speakers_only = true;
+        let mut member = VoiceMember {
+            id: "a".into(),
+            name: "A".into(),
+            avatar_url: None,
+            color: (0, 0, 0),
+            is_self: false,
+            speaking: false,
+            muted: false,
+        };
+        let roster = |m: &VoiceMember| ServerMessage::VoiceState {
+            in_call: true,
+            members: vec![m.clone()],
+        };
+        state.apply(roster(&member));
+        assert!(state.snapshot().voice_members.is_empty());
+        member.speaking = true;
+        state.apply(roster(&member));
+        assert!(state.snapshot().voice_members[0].speaking);
+        member.speaking = false;
+        state.apply(roster(&member));
+        let stopped = state.stopped_speaking["a"];
+        state.apply(roster(&member));
+        assert_eq!(state.stopped_speaking["a"], stopped);
+        assert!(!state.snapshot().voice_members[0].speaking);
+        *state.stopped_speaking.get_mut("a").unwrap() -= Duration::from_secs(3);
+        assert!(state.snapshot().voice_members.is_empty());
+        state.config.appearance.speaker_hold_seconds = 10;
+        assert_eq!(state.snapshot().voice_members.len(), 1);
+        state.apply(ServerMessage::VoiceState {
+            in_call: true,
+            members: vec![],
+        });
+        state.apply(roster(&member));
+        assert!(state.snapshot().voice_members.is_empty());
+    }
+
+    #[test]
+    fn notification_edits_apply_to_existing_cards() {
+        let mut state = AppState::default();
+        for title in ["oldest", "older", "newest"] {
+            state.push_notification(title, "body");
+        }
+        state.config.notifications.limit = 2;
+        state.prune_notifications();
+        assert_eq!(state.notifications[0].title, "older");
+        state.notifications[0].created -= Duration::from_secs(2);
+        state.config.notifications.seconds = 1;
+        state.prune_notifications();
+        assert_eq!(state.notifications.len(), 1);
+        assert_eq!(state.notifications[0].title, "newest");
+        state.config.notifications_enabled = false;
+        state.prune_notifications();
+        assert!(state.snapshot().notifications.is_empty());
+    }
+
+    #[test]
     fn notifications_respect_preferences_and_keep_only_latest() {
         let mut state = AppState::default();
         state.config.notifications_enabled = false;
@@ -216,10 +306,10 @@ mod tests {
         for n in 0..10 {
             state.push_notification(n.to_string(), "");
         }
-        assert_eq!(state.notifications.len(), MAX_NOTIFICATIONS);
+        assert_eq!(state.notifications.len(), 5);
         assert_eq!(state.notifications[0].title, "5");
-        state.notifications[0].created = Instant::now() - NOTIFICATION_TTL;
+        state.notifications[0].created = Instant::now() - Duration::from_secs(8);
         state.prune_notifications();
-        assert_eq!(state.notifications.len(), MAX_NOTIFICATIONS - 1);
+        assert_eq!(state.notifications.len(), 5 - 1);
     }
 }
