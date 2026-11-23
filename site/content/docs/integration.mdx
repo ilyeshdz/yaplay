@@ -71,11 +71,16 @@ If your client modification uses Rust, Python, or another language, use its WebS
 
 ## Handle overlay controls
 
-Pass `onControl` to opt in. The wrapper sends the versioned `hello` before replaying state on each connection. Without this callback, your integration stays state-only and the call controls remain disabled.
+Supply `name` to negotiate v2 on every connection. Set `actions` to the commands your callback implements. A named integration without a callback advertises an empty list and owns the roster. Leave `name` and `onControl` unset for a notification-only sender.
+
+The wrapper publishes the snapshot immediately. With a name and all three actions, it falls back to v1 and republishes the snapshot after 1.5 seconds without a v2 acknowledgement. A partial-control client continues publishing state on older hosts. Its controls require v2. Existing unnamed wrappers keep their previous behavior.
 
 ```js
 const overlay = new YaplayClient({
   WebSocketImpl: WebSocket,
+  name: 'Example voice plugin',
+  clientVersion: '1.4.0',
+  actions: ['set_mute', 'set_deafen', 'leave_call'],
   onControl: async (action) => {
     // Illustrative host bridge: replace these methods with your host's APIs.
     try {

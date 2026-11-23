@@ -6,7 +6,7 @@ use crate::{
         layout::{Layout, Panel},
     },
     hotkey::{self, Action as ShortcutAction, Registry},
-    state::{VoiceMember, app_state},
+    state::{Capability, VoiceMember, app_state},
     theme,
     windows::{self, Desktop},
 };
@@ -579,18 +579,157 @@ impl Settings {
             .when(!self.startup_error.is_empty(), |d| {
                 d.child(note(self.startup_error.clone()).text_color(rgb(0xff8c8c)))
             });
-        let connection = card().child(preference_row(
-            "WebSocket port",
-            "Use the same port in your Yapin integration.",
-            div().w(px(94.0)).child(Input::new(&self.port)),
-        ));
         div()
             .flex()
             .flex_col()
             .gap_5()
+            .child(group("Connection", self.connection()))
             .child(group("Startup", startup))
-            .child(group("Connection", connection))
             .child(self.shortcuts(cx))
+    }
+
+    fn connection(&self) -> Div {
+        let port = crate::websocket::listening_port();
+        let shared = app_state();
+        let state = shared.read().unwrap();
+        let client = state.integration();
+        let connected = client.is_some() || state.legacy_source.is_some();
+        let title = match (client, connected, port) {
+            (Some(client), _, _) => client.name.clone(),
+            (_, true, _) => "Unnamed integration".into(),
+            (_, _, Some(_)) => "Waiting for a client".into(),
+            _ => "Listener offline".into(),
+        };
+        let detail = if connected {
+            client
+                .and_then(|c| c.version.as_ref())
+                .map(|v| format!("Version {v}"))
+        } else {
+            Some(port.map_or_else(
+                || "Start Yaplay to accept connections.".into(),
+                |p| format!("Listening on 127.0.0.1:{p}"),
+            ))
+        };
+        let metadata = div()
+            .flex()
+            .flex_wrap()
+            .items_center()
+            .gap_2()
+            .when_some(detail, |row, text| row.child(note(text).text_xs()))
+            .when(connected, |row| {
+                let (label, color) = if state.in_call {
+                    ("In call", 0x97dfb5)
+                } else {
+                    ("Idle", theme::MUTED)
+                };
+                row.child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap_1p5()
+                        .text_xs()
+                        .text_color(rgb(color))
+                        .child(div().size(px(6.)).rounded_full().bg(rgb(color)))
+                        .child(label),
+                )
+            });
+        let identity = div()
+            .flex_1()
+            .min_w_0()
+            .flex()
+            .flex_col()
+            .child(
+                div()
+                    .text_size(px(18.))
+                    .line_height(px(23.))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .child(title),
+            )
+            .child(metadata)
+            .when(connected, |d| {
+                let mut actions = div()
+                    .flex()
+                    .flex_wrap()
+                    .items_center()
+                    .gap_2()
+                    .mt_2()
+                    .child(note("Call controls").text_xs());
+                if let Some(client) = client.filter(|c| !c.actions.is_empty()) {
+                    for action in &client.actions {
+                        let icon = match action {
+                            Capability::SetMute => "icons/microphone.svg",
+                            Capability::SetDeafen => "icons/headphones.svg",
+                            Capability::LeaveCall => "icons/phone-off.svg",
+                        };
+                        actions = actions.child(
+                            div()
+                                .flex()
+                                .items_center()
+                                .gap_1p5()
+                                .px_2()
+                                .py_1()
+                                .rounded_md()
+                                .bg(rgb(0x302d31))
+                                .text_xs()
+                                .child(
+                                    svg()
+                                        .path(icon)
+                                        .size(px(13.))
+                                        .text_color(rgb(theme::ACCENT)),
+                                )
+                                .child(action.label()),
+                        );
+                    }
+                } else {
+                    actions = actions.child(note("Roster only").text_xs());
+                }
+                d.child(actions)
+            });
+        let summary = div()
+            .flex()
+            .items_start()
+            .gap_3()
+            .p_4()
+            .child(
+                div()
+                    .size(px(38.))
+                    .flex_shrink_0()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .rounded_lg()
+                    .bg(rgb(if connected { 0x42312d } else { theme::BORDER }))
+                    .child(svg().path("icons/plug.svg").size(px(21.)).text_color(rgb(
+                        if connected {
+                            theme::ACCENT
+                        } else {
+                            theme::MUTED
+                        },
+                    ))),
+            )
+            .child(identity);
+        div()
+            .flex()
+            .flex_col()
+            .rounded_lg()
+            .overflow_hidden()
+            .border_1()
+            .border_color(rgb(theme::BORDER))
+            .bg(rgb(theme::SURFACE))
+            .child(summary)
+            .child(
+                div()
+                    .px_4()
+                    .py_3()
+                    .border_t_1()
+                    .border_color(rgb(theme::BORDER))
+                    .bg(rgb(0x19191e))
+                    .child(preference_row(
+                        "WebSocket port",
+                        "Use the same port in your Yapin integration.",
+                        div().w(px(94.)).child(Input::new(&self.port)),
+                    )),
+            )
     }
 
     fn overlay(&self, cx: &Context<Self>) -> Div {

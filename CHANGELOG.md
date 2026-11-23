@@ -4,6 +4,10 @@
 
 ### Added
 
+- Call integrations can introduce themselves by name and optional plugin version in the [protocol v2 handshake](site/content/docs/protocol.mdx#protocol-v2). Yaplay replies with the actions it accepts on that connection.
+- The client card at the top of **Settings → General** groups the integration name, version, and call status together, with supported controls directly underneath. When waiting for an integration, Settings shows the listening port. [Connection troubleshooting](site/content/docs/troubleshooting.mdx#my-client-wont-connect)
+- [Roster-only integrations](site/content/docs/protocol.mdx#protocol-v2) can identify themselves and supply call state with an empty action list.
+
 - Show [speakers only](site/content/docs/appearance.mdx#speaker-only-roster), with an adjustable delay before quiet speakers disappear.
 - Choose the [notification duration, card limit, and title-only display](site/content/docs/appearance.mdx#notifications).
 - Record a [global shortcut](site/content/docs/appearance.mdx#global-shortcuts) for the controls and optional mute and deafen shortcuts for compatible calls.
@@ -11,6 +15,9 @@
 - Drag the controls, voice panel, and notifications anywhere on screen. Choose **Move panels freely** in settings or the move button in the controls, and Yaplay remembers each panel's position and display for the next launch.
 
 ### Changed
+
+- The overlay shows only the call buttons a v2 integration supports. A mute-only integration gets a microphone button, and the [global mute and deafen shortcuts](site/content/docs/appearance.mdx#global-shortcuts) follow the same capabilities.
+- The [JavaScript wrapper](site/content/docs/integration.mdx#handle-overlay-controls) negotiates capabilities on reconnect. On older Yaplay versions, integrations with all three actions can fall back to v1 controls, while partial-control integrations continue publishing state. [Compatibility table](site/content/docs/protocol.mdx#compatibility)
 
 - [Settings](site/content/docs/appearance.mdx) now has a sidebar for General, Overlay, Appearance, and Updates. The current section stays highlighted as you hover over the sidebar, and Save or Start stays within reach while you edit.
 

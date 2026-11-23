@@ -66,15 +66,41 @@ Updates the local mic display. A self member appears muted when either this valu
 
 Updates the control panel’s deafen display. This does not change actual audio or automatically mute the microphone.
 
-### Control negotiation
+### Protocol v2
 
-A bidirectional integration sends this after each WebSocket connection:
+After opening the socket, a call integration can introduce itself before sending its snapshot. A mute-only client sends:
+
+```json
+{ "type": "hello", "version": 2, "name": "Example voice plugin", "client_version": "1.4.0", "actions": ["set_mute"] }
+```
+
+Yaplay replies on that socket:
+
+```json
+{ "type": "hello_ack", "version": 2, "actions": ["set_mute"] }
+```
+
+`name` is required. The optional `client_version` identifies the plugin build. Both are self-reported display strings of 1–128 UTF-8 bytes, with visible content and no control characters. `version` is the wire protocol version. The required `actions` array contains strings. Yaplay accepts `set_mute`, `set_deafen`, and `leave_call`, ignores unknown action names, and returns each accepted action once.
+
+An empty array identifies a roster-only call integration. Every valid v2 hello claims ownership of the call, even with an empty array. A notification-only sender should just send notifications. The latest negotiated socket owns the roster, mic, and deafen state. Taking over clears the previous call. Renegotiating on the same socket updates its actions and preserves its call. Closing the owner clears the call. Other sockets may continue sending notifications. Reconnect with a fresh hello and current snapshot.
+
+Settings → General shows the active integration and its actions. The overlay shows its accepted controls and enables them during a call. Global mute and deafen shortcuts follow the same permissions.
+
+### Compatibility
+
+| Client | Yaplay with v2 | Yaplay with v1 only |
+| --- | --- | --- |
+| v2 call integration | Named, with the acknowledged actions | No acknowledgement. Continue publishing state. Fall back to v1 controls only if all three actions are implemented. |
+| v1 control integration | Unnamed, all three controls | Unnamed, all three controls |
+| State-only client without hello | Legacy state updates when no negotiated owner is active | Same behavior |
+
+A v1 client sends the following on each connection. There is no reply.
 
 ```json
 { "type": "hello", "version": 1, "controls": true }
 ```
 
-Only the most recently negotiated client receives controls and may update call/mic/deafen state. Other connections may still send notifications. Taking control clears the previous call until the new client publishes its snapshot. Legacy state-only integrations can continue sending the four messages above without negotiating. Call controls are disabled when no compatible client is connected or no call is active.
+### Control requests
 
 Yaplay sends one of these JSON text messages when a control is pressed:
 

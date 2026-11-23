@@ -1,6 +1,6 @@
 use crate::{
     components::{
-        controls::{Controls, HEIGHT as CONTROLS_HEIGHT, WIDTH as CONTROLS_WIDTH},
+        controls::{Controls, HEIGHT as CONTROLS_HEIGHT, width as controls_width},
         notifications::{self, Notifications},
         overlay::Overlay,
         roster::Roster,
@@ -141,7 +141,10 @@ fn panel_bounds(cx: &App, panel: Panel, size: Size<Pixels>) -> Bounds<Pixels> {
 fn panel_size(panel: Panel, snapshot: &OverlaySnapshot, display: Size<Pixels>) -> Size<Pixels> {
     let viewport = (f32::from(display.width), f32::from(display.height));
     match panel {
-        Panel::Controls => size(px(CONTROLS_WIDTH), px(CONTROLS_HEIGHT)),
+        Panel::Controls => size(
+            px(controls_width(snapshot.integration.as_ref())),
+            px(CONTROLS_HEIGHT),
+        ),
         Panel::Roster => {
             voice_list::roster_size(&snapshot.voice_members, &snapshot.appearance, viewport)
         }

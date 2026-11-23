@@ -1,5 +1,5 @@
 use crate::{
-    state::{ControlAction, app_state},
+    state::{Capability, ControlAction, Integration, app_state},
     theme,
 };
 use gpui::{prelude::*, *};
@@ -8,7 +8,10 @@ use gpui_component::{
     button::{Button, ButtonCustomVariant, ButtonVariants},
 };
 
-pub const WIDTH: f32 = 354.0;
+pub fn width(integration: Option<&Integration>) -> f32 {
+    let count = integration.map_or(3, |i| i.actions.len());
+    354.0 - (3 - count) as f32 * 54.0
+}
 pub const HEIGHT: f32 = 80.0;
 
 fn control_button(id: &'static str, cx: &App) -> Button {
@@ -52,9 +55,19 @@ fn drag_grip() -> impl IntoElement {
 
 pub struct Controls;
 impl Render for Controls {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let current = app_state().read().unwrap().snapshot();
-        let enabled = current.in_call && current.controls_available;
+        let width = px(width(current.integration.as_ref()));
+        if window.viewport_size().width != width {
+            window.resize(size(width, px(HEIGHT)));
+        }
+        let enabled = current.in_call && current.integration.is_some();
+        let visible = |action| {
+            current
+                .integration
+                .as_ref()
+                .is_none_or(|i| i.actions.contains(&action))
+        };
         let mic = current.mic_muted;
         let deaf = current.deafened;
         let arranging = current.arranging;
@@ -71,56 +84,61 @@ impl Render for Controls {
                     .rounded(px(14.0))
                     .bg(rgb(theme::SURFACE))
                     .child(drag_grip())
-                    .child(
-                        control_button("mute", cx)
-                            .icon(Icon::default().path(if mic {
-                                "icons/microphone-off.svg"
-                            } else {
-                                "icons/microphone.svg"
-                            }))
-                            .tooltip(if mic {
-                                "Unmute microphone"
-                            } else {
-                                "Mute microphone"
-                            })
-                            .when(mic, |b| b.primary())
-                            .disabled(!enabled)
-                            .on_click(move |_, _, _| {
-                                app_state()
-                                    .read()
-                                    .unwrap()
-                                    .request_control(ControlAction::SetMute { muted: !mic })
-                            }),
-                    )
-                    .child(
-                        control_button("deafen", cx)
-                            .icon(Icon::default().path(if deaf {
-                                "icons/headphones-off.svg"
-                            } else {
-                                "icons/headphones.svg"
-                            }))
-                            .tooltip(if deaf { "Undeafen" } else { "Deafen" })
-                            .when(deaf, |b| b.primary())
-                            .disabled(!enabled)
-                            .on_click(move |_, _, _| {
-                                app_state()
-                                    .read()
-                                    .unwrap()
-                                    .request_control(ControlAction::SetDeafen { deafened: !deaf })
-                            }),
-                    )
-                    .child(
-                        control_button("leave", cx)
-                            .icon(Icon::default().path("icons/phone-off.svg"))
-                            .tooltip("Leave call")
-                            .disabled(!enabled)
-                            .on_click(|_, _, _| {
-                                app_state()
-                                    .read()
-                                    .unwrap()
-                                    .request_control(ControlAction::LeaveCall {})
-                            }),
-                    )
+                    .when(visible(Capability::SetMute), |row| {
+                        row.child(
+                            control_button("mute", cx)
+                                .icon(Icon::default().path(if mic {
+                                    "icons/microphone-off.svg"
+                                } else {
+                                    "icons/microphone.svg"
+                                }))
+                                .tooltip(if mic {
+                                    "Unmute microphone"
+                                } else {
+                                    "Mute microphone"
+                                })
+                                .when(mic, |b| b.primary())
+                                .disabled(!enabled)
+                                .on_click(move |_, _, _| {
+                                    app_state()
+                                        .read()
+                                        .unwrap()
+                                        .request_control(ControlAction::SetMute { muted: !mic })
+                                }),
+                        )
+                    })
+                    .when(visible(Capability::SetDeafen), |row| {
+                        row.child(
+                            control_button("deafen", cx)
+                                .icon(Icon::default().path(if deaf {
+                                    "icons/headphones-off.svg"
+                                } else {
+                                    "icons/headphones.svg"
+                                }))
+                                .tooltip(if deaf { "Undeafen" } else { "Deafen" })
+                                .when(deaf, |b| b.primary())
+                                .disabled(!enabled)
+                                .on_click(move |_, _, _| {
+                                    app_state().read().unwrap().request_control(
+                                        ControlAction::SetDeafen { deafened: !deaf },
+                                    )
+                                }),
+                        )
+                    })
+                    .when(visible(Capability::LeaveCall), |row| {
+                        row.child(
+                            control_button("leave", cx)
+                                .icon(Icon::default().path("icons/phone-off.svg"))
+                                .tooltip("Leave call")
+                                .disabled(!enabled)
+                                .on_click(|_, _, _| {
+                                    app_state()
+                                        .read()
+                                        .unwrap()
+                                        .request_control(ControlAction::LeaveCall {})
+                                }),
+                        )
+                    })
                     .child(
                         control_button("arrange", cx)
                             .icon(Icon::default().path("icons/move.svg"))

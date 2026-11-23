@@ -113,3 +113,44 @@ test('drops stale queued controls and negotiates again after reconnect', async (
   await flush();
   assert.equal(actions.length, 1);
 });
+
+test('named clients accept only acknowledged actions for this socket', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const actions = [];
+  const client = new YaplayClient({ WebSocketImpl: Socket, name: 'Demo', clientVersion: '1.0',
+    actions: ['set_mute', 'leave_call'], onControl: action => actions.push(action.type) });
+  t.after(() => client.disconnect());
+  client.connect();
+  const socket = Socket.instances.at(-1);
+  socket.open();
+  assert.deepEqual(socket.messages, [{ type: 'hello', version: 2, name: 'Demo', client_version: '1.0', actions: ['set_mute', 'leave_call'] }]);
+  const mute = '{"type":"set_mute","muted":true}';
+  receive(socket, mute);
+  t.mock.timers.tick(2000);
+  assert.equal(socket.messages.length, 1);
+  receive(socket, '{"type":"hello_ack","version":2,"actions":["set_mute","set_deafen"]}');
+  receive(socket, mute);
+  receive(socket, '{"type":"set_deafen","deafened":true}');
+  receive(socket, '{"type":"leave_call"}');
+  await flush();
+  assert.deepEqual(actions, ['set_mute']);
+});
+
+test('full control clients fall back to v1 and replay the current snapshot only on timeout', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const client = new YaplayClient({ WebSocketImpl: Socket, name: 'Demo', onControl: () => {} });
+  t.after(() => client.disconnect());
+  client.setRoster([]);
+  client.connect();
+  const first = Socket.instances.at(-1);
+  first.open();
+  t.mock.timers.tick(1500);
+  assert.deepEqual(first.messages.map(m => m.version || m.type), [2, 'voice_state', 1, 'voice_state']);
+  first.close();
+  t.mock.timers.tick(1500);
+  const second = Socket.instances.at(-1);
+  second.open();
+  receive(second, '{"type":"hello_ack","version":2,"actions":[]}');
+  t.mock.timers.tick(2000);
+  assert.deepEqual(second.messages.map(m => m.version || m.type), [2, 'voice_state']);
+});
