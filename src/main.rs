@@ -17,6 +17,8 @@ actions!(yaplay, [OpenSettings, ToggleControls, Quit]);
 
 fn main() {
     Application::new().with_assets(theme::Assets).run(|cx| {
+        #[cfg(target_os = "macos")]
+        windows::set_dock_icon_visible(false);
         theme::init(cx);
         cx.on_action(|_: &OpenSettings, cx| windows::open_settings(cx));
         cx.on_action(|_: &ToggleControls, cx| windows::toggle_controls(cx));
@@ -65,7 +67,15 @@ fn main() {
             eprintln!("Global shortcut: {error}");
         }
         cx.on_window_closed(|cx| {
-            if cx.windows().is_empty() {
+            let remaining = cx.windows();
+            if let Some(settings) = cx.global::<windows::Desktop>().settings
+                && !remaining.contains(&settings)
+            {
+                cx.global_mut::<windows::Desktop>().settings = None;
+                #[cfg(target_os = "macos")]
+                windows::set_dock_icon_visible(false);
+            }
+            if remaining.is_empty() {
                 updater::quit(cx);
             }
         })

@@ -245,10 +245,7 @@ impl Settings {
             Ok(())
         })();
         match result {
-            Ok(()) => {
-                cx.global_mut::<Desktop>().settings = None;
-                window.remove_window();
-            }
+            Ok(()) => window.remove_window(),
             Err(error) => {
                 self.error = error.to_string();
                 cx.notify();

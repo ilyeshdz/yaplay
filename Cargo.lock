@@ -8192,6 +8192,7 @@ dependencies = [
  "gpui-updater-release",
  "image",
  "objc2",
+ "objc2-app-kit",
  "raw-window-handle",
  "reqwest",
  "serde",

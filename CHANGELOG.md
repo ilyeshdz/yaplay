@@ -6,6 +6,10 @@
 
 - Drag the controls, voice panel, and notifications anywhere on screen. Choose **Move panels freely** in settings or the move button in the controls, and Yaplay remembers each panel's position and display for the next launch.
 
+### Changed
+
+- Yaplay appears in the Windows taskbar and macOS Dock only while [Settings](site/content/docs/appearance.mdx) is open.
+
 ## [1.5.0] (2026-11-22)
 
 ### Changed
