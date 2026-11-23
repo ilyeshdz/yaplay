@@ -1,12 +1,23 @@
+const allActions = ['set_mute', 'set_deafen', 'leave_call'];
+const validLabel = value => typeof value === 'string' && value.trim().length > 0 &&
+  new TextEncoder().encode(value).length <= 128 && !/[\u0000-\u001f\u007f-\u009f]/u.test(value);
+
 /** Small transport wrapper. Inject `ws` in Node or use a host's WebSocket. */
 export class YaplayClient {
-  constructor({ port = 8080, WebSocketImpl = globalThis.WebSocket, retryMs = 1500, onStatus = () => {}, onControl = null, onControlError = () => {} } = {}) {
+  constructor({ port = 8080, WebSocketImpl = globalThis.WebSocket, retryMs = 1500, onStatus = () => {}, onControl = null, onControlError = () => {}, name, clientVersion, actions = onControl ? allActions : [] } = {}) {
     if (!Number.isInteger(port) || port < 1 || port > 65535) throw new RangeError('Invalid port');
     if (!WebSocketImpl) throw new Error('Provide a WebSocket implementation');
     this.url = `ws://127.0.0.1:${port}`;
     this.WebSocketImpl = WebSocketImpl;
     this.retryMs = retryMs;
     if (onControl !== null && typeof onControl !== 'function') throw new TypeError('onControl must be a function');
+    if (name !== undefined && !validLabel(name)) throw new TypeError('Invalid integration name');
+    if (clientVersion !== undefined && (!name || !validLabel(clientVersion))) throw new TypeError('Invalid clientVersion');
+    if (!Array.isArray(actions) || actions.some(a => !onControl || !allActions.includes(a))) throw new TypeError('Invalid actions');
+    this.actions = new Set(actions);
+    if (!name && onControl && this.actions.size !== allActions.length) throw new TypeError('Partial controls require an integration name');
+    this.name = name;
+    this.clientVersion = clientVersion;
     this.onStatus = onStatus;
     this.onControl = onControl;
     this.onControlError = onControlError;
@@ -27,21 +38,44 @@ export class YaplayClient {
     try { socket = new this.WebSocketImpl(this.url); }
     catch { this.retry(); return; }
     this.socket = socket;
+    let accepted = new Set();
+    let awaitingAck = false;
+    let fallbackTimer;
     socket.addEventListener('open', () => {
       if (this.socket !== socket || this.stopped) return;
-      if (this.onControl) this.send({ type: 'hello', version: 1, controls: true });
-      // Replay a snapshot, never old notifications, after reconnecting.
-      for (const type of ['voice_state', 'mic_state', 'deafen_state']) {
-        if (this.state.has(type)) this.send(this.state.get(type));
-      }
+      const enableV1 = () => {
+        accepted = new Set(allActions);
+        this.send({ type: 'hello', version: 1, controls: true });
+      };
+      if (this.name) {
+        awaitingAck = true;
+        this.send({ type: 'hello', version: 2, name: this.name, client_version: this.clientVersion, actions: [...this.actions] });
+        if (this.actions.size === allActions.length) {
+          fallbackTimer = setTimeout(() => {
+            if (!awaitingAck || this.socket !== socket || socket.readyState !== 1) return;
+            awaitingAck = false;
+            enableV1();
+            this.replay();
+          }, 1500);
+        }
+      } else if (this.onControl) enableV1();
+      this.replay();
       this.onStatus('connected');
     });
     let pending = Promise.resolve();
     socket.addEventListener('message', (event) => {
-      if (!this.onControl || this.socket !== socket || this.stopped) return;
+      if (this.socket !== socket || this.stopped) return;
       let action;
       try { action = JSON.parse(String(event.data)); } catch { return; }
       if (!action || typeof action !== 'object') return;
+      if (action.type === 'hello_ack' && awaitingAck && action.version === 2 &&
+          Array.isArray(action.actions) && action.actions.every(a => typeof a === 'string')) {
+        awaitingAck = false;
+        clearTimeout(fallbackTimer);
+        accepted = new Set(action.actions.filter(a => this.actions.has(a)));
+        return;
+      }
+      if (!accepted.has(action.type)) return;
       const valid = (action.type === 'set_mute' && typeof action.muted === 'boolean') ||
         (action.type === 'set_deafen' && typeof action.deafened === 'boolean') || action.type === 'leave_call';
       if (!valid) return;
@@ -55,10 +89,16 @@ export class YaplayClient {
       socket.close();
     });
     socket.addEventListener('close', () => {
+      clearTimeout(fallbackTimer);
       if (this.socket !== socket) return;
       this.socket = null;
       this.retry();
     });
+  }
+  replay() {
+    for (const type of ['voice_state', 'mic_state', 'deafen_state']) {
+      if (this.state.has(type)) this.send(this.state.get(type));
+    }
   }
   retry() {
     if (this.stopped) return;

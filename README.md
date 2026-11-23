@@ -52,7 +52,7 @@ The build copies the wrapper into the static output for download. The `/releases
 
 On first launch, press Start in the settings window to save your preferences. Future launches start the overlay automatically. Yaplay starts a local WebSocket server, closes the settings window, and opens a transparent overlay. The roster starts in the top left and notifications in the top right, but each panel is its own floating window: drag the controls by their grip, or choose **Move panels freely** in settings (or the move button in the controls) to drag the voice panel and notifications. Positions are saved per display. The overlay stays click through outside the panels, so it does not block the windows below it. Open the control panel with Cmd+Shift+Y on macOS or Ctrl+Shift+Y on Windows, then use the settings icon to reopen settings. Save applies changes without restarting Yaplay.
 
-The default controls shortcut is `Ctrl+Shift+Y` on Windows or `Cmd+Shift+Y` on macOS. Change it or assign optional mute and deafen shortcuts in **General → Global shortcuts**. It has mute, deafen, leave-call, settings, and exit icons. With a control-capable integration, the mic, deafen, and leave-call buttons send requests to Yapin. The overlay updates when the client reports the resulting state. Call controls are disabled without a negotiated client. Exit still closes Yaplay.
+The default controls shortcut is `Ctrl+Shift+Y` on Windows or `Cmd+Shift+Y` on macOS. Change it or assign optional mute and deafen shortcuts in **General → Global shortcuts**. Open **General → Connection** to see which integration supplies the call and which controls it supports. For example, a mute-only integration shows just the microphone button alongside the panel and app controls. Call buttons and shortcuts work during an active call. The overlay updates when the integration confirms the result.
 
 To launch Yaplay when you sign in, enable **Start Yaplay when I sign in** in settings. This is off by default and applies immediately for your user account; turn it off in the same place. Install Yaplay in a permanent location first (Applications on macOS). If you move it, turn the option off and on from the new location. The setting uses a macOS LaunchAgent or a Windows startup entry, and is read from the operating system whenever settings open. Disable it before deleting Yaplay.
 
@@ -192,15 +192,21 @@ Each roster member may also include an optional `avatar_url` with a public HTTPS
 
 ### Client controls
 
-A bidirectional integration opts in after each connection:
+Protocol v2 lets a call integration identify itself and advertise the commands it implements. Send a hello on each connection, followed by the current call snapshot.
 
 ```json
-{ "type": "hello", "version": 1, "controls": true }
+{ "type": "hello", "version": 2, "name": "Example voice plugin", "client_version": "1.4.0", "actions": ["set_mute"] }
 ```
 
-The most recently negotiated client owns call state and receives `{"type":"set_mute","muted":true}`, `{"type":"set_deafen","deafened":true}`, or `{"type":"leave_call"}`. Apply these through the host’s voice actions and send the resulting state back. Do not assume a microphone request succeeded: permissions or call roles may prevent it. Controls do not change the overlay state optimistically and are not queued for a future connection. Disconnecting the active control client clears its roster and disables call controls. Legacy state-only connections remain supported.
+Yaplay replies on the same connection with the actions it accepts. For the mute-only integration above, the reply is:
 
-The JavaScript wrapper opts in when constructed with an `onControl(action)` callback. Apply `set_mute`, `set_deafen`, and `leave_call` through your host, then publish confirmed state with `setRoster`, `setMic`, and `setDeafen`. Handle host errors with `onControlError(error)`.
+```json
+{ "type": "hello_ack", "version": 2, "actions": ["set_mute"] }
+```
+
+Send an empty `actions` list for a roster-only integration. The most recently negotiated integration owns the call state and receives any control requests. Apply each request through the host and publish the confirmed state. Existing v1 control clients and legacy state-only clients continue to work.
+
+See the [protocol and compatibility table](site/content/docs/protocol.mdx#compatibility) and the [JavaScript wrapper example](site/content/docs/integration.mdx#handle-overlay-controls).
 
 ### Example
 

@@ -18,7 +18,7 @@ The integration runs in the modified Yapin client. A **plugin** subscribes to th
 The WebSocket protocol is not tied to a specific plugin API. Your integration maps the host’s Yapin call and notification events to that protocol.
 
 *   Yaplay binds only to `127.0.0.1`, on the configured port.
-*   State-only integrations need no handshake. Bidirectional integrations opt in with `hello` version 1. There is no authentication.
+*   Legacy state-only integrations need no hello. Protocol v2 exchanges the call integration’s display identity and accepted control actions. Existing v1 integrations can still request all three controls. The loopback protocol uses self-reported names.
 *   State and notifications flow to Yaplay. Mute, deafen, and leave-call requests flow back to the negotiated client, which publishes the actual resulting state.
 *   Multiple connections share one overlay. The latest negotiated control client owns call state and receives control requests; other clients can still send notifications. Without a control client, legacy state messages retain last-write-wins behavior.
 *   There is no discovery, automatic app launch, or plugin installation mechanism. Your integration must expose the port and explain how to start Yaplay.

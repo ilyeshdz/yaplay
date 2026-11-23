@@ -10,7 +10,7 @@ use tokio_tungstenite::{
     tungstenite::{Message, protocol::WebSocketConfig},
 };
 
-use crate::state::{ServerMessage, SharedState};
+use crate::state::{ActiveIntegration, Capability, Integration, ServerMessage, SharedState};
 
 struct Server {
     port: u16,
@@ -19,6 +19,10 @@ struct Server {
 }
 
 static SERVER: Mutex<Option<Server>> = Mutex::new(None);
+
+pub fn listening_port() -> Option<u16> {
+    SERVER.lock().unwrap().as_ref().map(|server| server.port)
+}
 
 pub fn start_server(port: u16, state: SharedState) -> Result<(), String> {
     let mut server = SERVER.lock().unwrap();
@@ -102,21 +106,45 @@ struct ControlConnection {
     sender: tokio::sync::mpsc::Sender<crate::state::ControlAction>,
 }
 
-impl Drop for ControlConnection {
-    fn drop(&mut self) {
-        if let Ok(mut state) = self.state.write()
-            && state
-                .control_client
-                .as_ref()
-                .is_some_and(|sender| sender.same_channel(&self.sender))
-        {
-            state.control_client = None;
+impl ControlConnection {
+    fn negotiate(&self, integration: Option<Integration>) {
+        let mut state = self.state.write().unwrap();
+        let current = state
+            .active
+            .as_ref()
+            .is_some_and(|client| client.sender.same_channel(&self.sender));
+        if current != integration.is_some() {
             state.apply(ServerMessage::VoiceState {
                 in_call: false,
                 members: vec![],
             });
         }
+        if current || integration.is_some() {
+            state.active = integration.map(|info| ActiveIntegration {
+                info,
+                sender: self.sender.clone(),
+            });
+            state.legacy_source = None;
+        }
     }
+}
+
+impl Drop for ControlConnection {
+    fn drop(&mut self) {
+        self.negotiate(None);
+        let mut state = self.state.write().unwrap();
+        if state
+            .legacy_source
+            .as_ref()
+            .is_some_and(|s| s.same_channel(&self.sender))
+        {
+            state.legacy_source = None;
+        }
+    }
+}
+
+fn valid_label(value: &str) -> bool {
+    !value.trim().is_empty() && value.len() <= 128 && !value.chars().any(char::is_control)
 }
 
 async fn handle_connection(stream: tokio::net::TcpStream, state: SharedState) {
@@ -144,7 +172,7 @@ async fn handle_connection(stream: tokio::net::TcpStream, state: SharedState) {
     }
 
     let (control_sender, mut controls) = tokio::sync::mpsc::channel(16);
-    let _connection = ControlConnection {
+    let connection = ControlConnection {
         state: state.clone(),
         sender: control_sender.clone(),
     };
@@ -152,25 +180,31 @@ async fn handle_connection(stream: tokio::net::TcpStream, state: SharedState) {
         tokio::select! {
             message = stream.next() => match message {
                 Some(Ok(Message::Text(text))) => match serde_json::from_str::<ServerMessage>(&text) {
-                    Ok(ServerMessage::Hello { version: 1, controls: true }) => {
-                        if let Ok(mut state) = state.write() {
-                            // Only the most recently negotiated integration receives controls.
-                            if !state.control_client.as_ref().is_some_and(|sender| sender.same_channel(&control_sender)) {
-                                state.apply(ServerMessage::VoiceState { in_call: false, members: vec![] });
-                            }
-                            state.control_client = Some(control_sender.clone());
-                        }
+                    Ok(ServerMessage::Hello { version: 2, name: Some(name), client_version, actions: Some(actions), .. })
+                        if valid_label(&name) && client_version.as_deref().is_none_or(valid_label) => {
+                        let integration = Integration {
+                            name,
+                            version: client_version,
+                            actions: actions.iter().filter_map(|name| Capability::from_wire(name)).collect(),
+                        };
+                        let reply = serde_json::json!({"type": "hello_ack", "version": 2, "actions": integration.actions});
+                        connection.negotiate(Some(integration));
+                        if !matches!(tokio::time::timeout(Duration::from_secs(2), stream.send(Message::Text(reply.to_string().into()))).await, Ok(Ok(()))) { break; }
                     }
-                    Ok(ServerMessage::Hello { .. }) => {
-                        if let Ok(mut state) = state.write()
-                            && state.control_client.as_ref().is_some_and(|sender| sender.same_channel(&control_sender)) {
-                            state.control_client = None;
-                            state.apply(ServerMessage::VoiceState { in_call: false, members: vec![] });
-                        }
+                    Ok(ServerMessage::Hello { version: 1, controls: Some(true), .. }) => {
+                        connection.negotiate(Some(Integration {
+                            name: "Unnamed integration".into(),
+                            version: None,
+                            actions: Capability::ALL.into_iter().collect(),
+                        }));
                     }
+                    Ok(ServerMessage::Hello { .. }) => connection.negotiate(None),
                     Ok(message) => {
                         if let Ok(mut state) = state.write() {
-                            let owns_state = state.control_client.as_ref().is_none_or(|sender| sender.same_channel(&control_sender));
+                            let owns_state = state.active.as_ref().is_none_or(|client| client.sender.same_channel(&control_sender));
+                            if state.active.is_none() && !matches!(message, ServerMessage::Notification { .. }) {
+                                state.legacy_source = Some(control_sender.clone());
+                            }
                             if owns_state || matches!(message, ServerMessage::Notification { .. }) { state.apply(message); }
                         }
                     }
@@ -181,8 +215,8 @@ async fn handle_connection(stream: tokio::net::TcpStream, state: SharedState) {
                 _ => {},
             },
             Some(action) = controls.recv() => {
-                let owns_controls = state.read().is_ok_and(|state| state.in_call && state.control_client.as_ref()
-                    .is_some_and(|sender| sender.same_channel(&control_sender)));
+                let owns_controls = state.read().is_ok_and(|state| state.permits(&action) && state.active.as_ref()
+                    .is_some_and(|client| client.sender.same_channel(&control_sender)));
                 if !owns_controls { continue; }
                 let text = serde_json::to_string(&action).expect("control actions serialize");
                 if !matches!(tokio::time::timeout(Duration::from_secs(2), stream.send(Message::Text(text.into()))).await, Ok(Ok(()))) { break; }
@@ -275,7 +309,7 @@ mod tests {
         assert!(matches!(client.next().await, Some(Ok(Message::Pong(_)))));
         {
             let state = state.read().unwrap();
-            assert!(state.snapshot().controls_available);
+            assert!(state.integration().is_some());
             state.request_control(crate::state::ControlAction::SetMute { muted: true });
             assert!(!state.mic_muted);
         }
@@ -301,7 +335,7 @@ mod tests {
             .unwrap()
             .unwrap();
         let state = state.read().unwrap();
-        assert!(!state.snapshot().controls_available);
+        assert!(state.integration().is_none());
         assert!(!state.in_call);
     }
 
@@ -384,10 +418,10 @@ mod tests {
         }
         first_task.abort();
         let _ = first_task.await;
-        assert!(state.read().unwrap().snapshot().controls_available);
+        assert!(state.read().unwrap().integration().is_some());
         second_task.abort();
         let _ = second_task.await;
-        assert!(!state.read().unwrap().snapshot().controls_available);
+        assert!(state.read().unwrap().integration().is_none());
         assert!(!state.read().unwrap().in_call);
     }
 
@@ -400,21 +434,77 @@ mod tests {
             &[r#"{"type":"hello","version":2,"controls":true}"#],
         )
         .await;
-        assert!(!state.read().unwrap().snapshot().controls_available);
+        assert!(state.read().unwrap().integration().is_none());
         publish(
             &mut client,
             &[r#"{"type":"hello","version":1,"controls":true}"#],
         )
         .await;
-        assert!(state.read().unwrap().snapshot().controls_available);
+        assert!(state.read().unwrap().integration().is_some());
         publish(
             &mut client,
             &[r#"{"type":"hello","version":1,"controls":false}"#],
         )
         .await;
-        assert!(!state.read().unwrap().snapshot().controls_available);
+        assert!(state.read().unwrap().integration().is_none());
         task.abort();
         let _ = task.await;
+    }
+
+    #[tokio::test]
+    async fn v2_negotiates_actions_and_can_renegotiate_as_roster_only() {
+        use crate::state::{AppState, ControlAction};
+        let state = Arc::new(RwLock::new(AppState::default()));
+        let (mut client, task) = connect_test(state.clone()).await;
+        for (requested, accepted) in [
+            (vec!["set_mute", "future", "set_mute"], vec!["set_mute"]),
+            (vec![], vec![]),
+        ] {
+            let hello = serde_json::json!({"type":"hello","version":2,"name":"Demo","client_version":"1.2","actions": requested});
+            client
+                .send(Message::Text(hello.to_string().into()))
+                .await
+                .unwrap();
+            let reply = tokio::time::timeout(Duration::from_secs(2), client.next())
+                .await
+                .unwrap()
+                .unwrap()
+                .unwrap();
+            assert_eq!(
+                serde_json::from_str::<serde_json::Value>(&reply.into_text().unwrap()).unwrap(),
+                serde_json::json!({"type":"hello_ack","version":2,"actions":accepted})
+            );
+            if accepted.is_empty() {
+                assert!(state.read().unwrap().in_call);
+            } else {
+                publish(
+                    &mut client,
+                    &[r#"{"type":"voice_state","in_call":true,"members":[]}"#],
+                )
+                .await;
+            }
+            let locked = state.read().unwrap();
+            let info = locked.integration().unwrap();
+            assert_eq!(info.name, "Demo");
+            assert_eq!(info.version.as_deref(), Some("1.2"));
+            assert!(!locked.permits(&ControlAction::LeaveCall {}));
+            assert_eq!(
+                locked.permits(&ControlAction::SetMute { muted: true }),
+                !accepted.is_empty()
+            );
+        }
+        let (mut legacy, other) = connect_test(state.clone()).await;
+        publish(
+            &mut legacy,
+            &[r#"{"type":"voice_state","in_call":false,"members":[]}"#],
+        )
+        .await;
+        assert!(state.read().unwrap().in_call);
+        task.abort();
+        let _ = task.await;
+        assert!(state.read().unwrap().integration().is_none());
+        assert!(!state.read().unwrap().in_call);
+        other.abort();
     }
 
     #[tokio::test]

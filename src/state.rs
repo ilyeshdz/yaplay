@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::{Arc, OnceLock, RwLock};
 use std::time::{Duration, Instant};
 
@@ -41,7 +41,10 @@ pub struct Notification {
 pub enum ServerMessage {
     Hello {
         version: u8,
-        controls: bool,
+        controls: Option<bool>,
+        name: Option<String>,
+        client_version: Option<String>,
+        actions: Option<Vec<String>>,
     },
     VoiceState {
         in_call: bool,
@@ -67,11 +70,58 @@ pub enum ControlAction {
     LeaveCall {},
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Capability {
+    SetMute,
+    SetDeafen,
+    LeaveCall,
+}
+
+impl Capability {
+    pub const ALL: [Self; 3] = [Self::SetMute, Self::SetDeafen, Self::LeaveCall];
+
+    pub fn from_wire(name: &str) -> Option<Self> {
+        match name {
+            "set_mute" => Some(Self::SetMute),
+            "set_deafen" => Some(Self::SetDeafen),
+            "leave_call" => Some(Self::LeaveCall),
+            _ => None,
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::SetMute => "Mute",
+            Self::SetDeafen => "Deafen",
+            Self::LeaveCall => "Leave call",
+        }
+    }
+}
+
+impl ControlAction {
+    pub fn capability(&self) -> Capability {
+        match self {
+            Self::SetMute { .. } => Capability::SetMute,
+            Self::SetDeafen { .. } => Capability::SetDeafen,
+            Self::LeaveCall {} => Capability::LeaveCall,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Integration {
+    pub name: String,
+    pub version: Option<String>,
+    pub actions: BTreeSet<Capability>,
+}
+
 #[derive(Clone, PartialEq, Eq, Default)]
 pub struct OverlaySnapshot {
     pub appearance: crate::data::appearance::Appearance,
     pub notification_style: crate::data::configuration::NotificationSettings,
-    pub controls_available: bool,
+    pub integration: Option<Integration>,
+    pub legacy_source: bool,
     pub in_call: bool,
     pub voice_members: Vec<VoiceMember>,
     pub notifications: Vec<Notification>,
@@ -82,9 +132,15 @@ pub struct OverlaySnapshot {
     pub arranging: bool,
 }
 
+pub struct ActiveIntegration {
+    pub info: Integration,
+    pub sender: tokio::sync::mpsc::Sender<ControlAction>,
+}
+
 #[derive(Default)]
 pub struct AppState {
-    pub control_client: Option<tokio::sync::mpsc::Sender<ControlAction>>,
+    pub active: Option<ActiveIntegration>,
+    pub legacy_source: Option<tokio::sync::mpsc::Sender<ControlAction>>,
     pub startup_error: Option<String>,
     pub config: Configuration,
     pub in_call: bool,
@@ -100,9 +156,20 @@ pub struct AppState {
 }
 
 impl AppState {
+    pub fn integration(&self) -> Option<&Integration> {
+        self.active.as_ref().map(|client| &client.info)
+    }
+
+    pub fn permits(&self, action: &ControlAction) -> bool {
+        self.in_call
+            && self
+                .integration()
+                .is_some_and(|i| i.actions.contains(&action.capability()))
+    }
+
     pub fn request_control(&self, action: ControlAction) {
-        if let Some(client) = self.control_client.as_ref().filter(|_| self.in_call) {
-            let _ = client.try_send(action);
+        if let Some(client) = self.active.as_ref().filter(|_| self.permits(&action)) {
+            let _ = client.sender.try_send(action);
         }
     }
 
@@ -177,10 +244,8 @@ impl AppState {
     pub fn snapshot(&self) -> OverlaySnapshot {
         OverlaySnapshot {
             appearance: self.config.appearance.clone(),
-            controls_available: self
-                .control_client
-                .as_ref()
-                .is_some_and(|client| !client.is_closed()),
+            integration: self.integration().cloned(),
+            legacy_source: self.legacy_source.is_some(),
             in_call: self.in_call,
             voice_members: self
                 .voice_members
