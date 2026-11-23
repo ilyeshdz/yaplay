@@ -163,7 +163,12 @@ fn panel_options(
         window_bounds: Some(WindowBounds::Windowed(bounds)),
         display_id,
         titlebar: None,
-        kind: WindowKind::Normal,
+        // GPUI creates Windows popups with WS_EX_TOOLWINDOW before showing them.
+        kind: if cfg!(target_os = "windows") {
+            WindowKind::PopUp
+        } else {
+            WindowKind::Normal
+        },
         window_background: WindowBackgroundAppearance::Transparent,
         is_resizable: false,
         is_movable: false,
@@ -173,13 +178,30 @@ fn panel_options(
     }
 }
 
+#[cfg(target_os = "macos")]
+pub fn set_dock_icon_visible(visible: bool) {
+    use objc2::MainThreadMarker;
+    use objc2_app_kit::{NSApplication, NSApplicationActivationPolicy};
+
+    let main_thread = MainThreadMarker::new().expect("GPUI runs on the main thread");
+    let app = NSApplication::sharedApplication(main_thread);
+    let policy = if visible {
+        NSApplicationActivationPolicy::Regular
+    } else {
+        NSApplicationActivationPolicy::Accessory
+    };
+    if !app.setActivationPolicy(policy) {
+        eprintln!("Cannot change the macOS Dock visibility");
+    }
+}
+
 pub fn open_settings(cx: &mut App) {
-    cx.activate(true);
     if let Some(handle) = cx.global::<Desktop>().settings
         && handle
             .update(cx, |_, window, _| window.activate_window())
             .is_ok()
     {
+        cx.activate(true);
         return;
     }
     match cx.open_window(
@@ -204,6 +226,8 @@ pub fn open_settings(cx: &mut App) {
     ) {
         Ok(handle) => {
             cx.global_mut::<Desktop>().settings = Some(handle.into());
+            #[cfg(target_os = "macos")]
+            set_dock_icon_visible(true);
             cx.activate(true);
         }
         Err(error) => eprintln!("Cannot open settings: {error}"),
@@ -211,18 +235,11 @@ pub fn open_settings(cx: &mut App) {
 }
 
 fn overlay_options(bounds: Bounds<Pixels>, focus: bool, cx: &App) -> WindowOptions {
-    WindowOptions {
-        window_bounds: Some(WindowBounds::Windowed(bounds)),
-        display_id: selected_display(cx).map(|display| display.id()),
-        titlebar: None,
-        kind: WindowKind::Normal,
-        window_background: WindowBackgroundAppearance::Transparent,
-        is_resizable: false,
-        is_movable: false,
-        is_minimizable: false,
+    panel_options(
+        bounds,
         focus,
-        ..Default::default()
-    }
+        selected_display(cx).map(|display| display.id()),
+    )
 }
 
 pub fn open_overlay(cx: &mut App) -> anyhow::Result<()> {
@@ -523,6 +540,7 @@ pub fn begin_window_drag(window: &Window) {
     #[cfg(target_os = "windows")]
     unsafe {
         use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+        use windows_sys::Win32::UI::Input::KeyboardAndMouse::ReleaseCapture;
         use windows_sys::Win32::UI::WindowsAndMessaging::*;
         let Ok(handle) = HasWindowHandle::window_handle(window) else {
             return;
@@ -530,7 +548,7 @@ pub fn begin_window_drag(window: &Window) {
         if let RawWindowHandle::Win32(handle) = handle.as_raw() {
             let hwnd = handle.hwnd.get() as *mut std::ffi::c_void;
             ReleaseCapture();
-            SendMessageW(hwnd, WM_NCLBUTTONDOWN, HTCAPTION as WPARAM, 0);
+            SendMessageW(hwnd, WM_NCLBUTTONDOWN, HTCAPTION as usize, 0);
         }
     }
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
@@ -560,7 +578,6 @@ fn configure_overlay(window: &Window, click_through: bool) {
             let hwnd = handle.hwnd.get() as *mut std::ffi::c_void;
             let mut style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
             let passthrough = (WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_NOACTIVATE) as isize;
-            style |= WS_EX_TOOLWINDOW as isize;
             style = if click_through {
                 style | passthrough
             } else {
