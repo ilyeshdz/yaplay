@@ -8,6 +8,8 @@
 
 ### Changed
 
+- [Settings](site/content/docs/appearance.mdx) now has a sidebar for General, Overlay, Appearance, and Updates. The current section stays highlighted as you hover over the sidebar, and Save or Start stays within reach while you edit.
+
 - Yaplay appears in the Windows taskbar and macOS Dock only while [Settings](site/content/docs/appearance.mdx) is open.
 
 ## [1.5.0] (2026-11-22)

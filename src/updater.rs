@@ -8,7 +8,7 @@ use gpui_updater::{
     VersionBinding,
 };
 
-use crate::{data::configuration::Configuration, state::app_state, theme};
+use crate::{data::configuration::Configuration, state::app_state};
 
 const RELEASES_URL: &str = "https://github.com/ilyeshdz/yaplay/releases";
 const CHECK_INTERVAL: Duration = Duration::from_secs(6 * 60 * 60);
@@ -210,10 +210,10 @@ fn status_text(status: &UpdateStatus) -> String {
 
 pub fn panel(cx: &App) -> impl IntoElement {
     let updates = cx.global::<Updates>();
-    let mut panel = div().flex().flex_col().gap_2().child(
+    let mut panel = div().flex().flex_col().items_start().gap_3().child(
         div()
             .text_lg()
-            .child(format!("Updates · {}", env!("CARGO_PKG_VERSION"))),
+            .child(format!("Yaplay {}", env!("CARGO_PKG_VERSION"))),
     );
     if let Some(updater) = &updates.updater {
         let status = updater.read(cx).status().clone();
@@ -228,6 +228,7 @@ pub fn panel(cx: &App) -> impl IntoElement {
         let updater = updater.clone();
         panel = panel.child(
             Button::new("update-action")
+                .outline()
                 .label(label)
                 .disabled(!enabled)
                 .on_click(move |_, _, cx| {
@@ -254,10 +255,12 @@ pub fn panel(cx: &App) -> impl IntoElement {
     } else if let Some(reason) = &updates.unavailable {
         panel = panel.child(div().text_sm().child(reason.clone()));
     }
-    panel.child(div().text_sm().text_color(rgb(theme::MUTED))
-        .child("Automatic checks contact GitHub every six hours. Downloads and restarts require your action."))
-        .child(Button::new("release-notes").label("Release notes and manual download")
-            .on_click(|_, _, cx| cx.open_url(RELEASES_URL)))
+    panel.child(
+        Button::new("release-notes")
+            .outline()
+            .label("Release notes and manual download")
+            .on_click(|_, _, cx| cx.open_url(RELEASES_URL)),
+    )
 }
 
 #[cfg(test)]

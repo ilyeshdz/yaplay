@@ -208,10 +208,10 @@ pub fn open_settings(cx: &mut App) {
         WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
                 None,
-                size(px(520.0), px(780.0)),
+                size(px(820.0), px(680.0)),
                 cx,
             ))),
-            window_min_size: Some(size(px(460.0), px(600.0))),
+            window_min_size: Some(size(px(640.0), px(480.0))),
             titlebar: Some(TitlebarOptions {
                 title: Some("Yaplay Settings".into()),
                 appears_transparent: true,
