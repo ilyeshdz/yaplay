@@ -102,8 +102,12 @@ fn main() {
                             state.prune_notifications();
                             state.snapshot()
                         };
+                        // Capture drag positions before panels close, then
+                        // reconcile which panels should be open.
+                        windows::persist_layout(cx);
                         if previous.as_ref() != Some(&snapshot) {
                             previous = Some(snapshot);
+                            windows::sync(cx);
                             cx.refresh_windows();
                         }
                     })

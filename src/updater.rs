@@ -158,6 +158,7 @@ pub fn check(cx: &mut App) {
 }
 
 pub fn quit(cx: &mut App) {
+    crate::windows::flush_layout(cx);
     let installing = cx
         .try_global::<Updates>()
         .and_then(|updates| updates.updater.as_ref())
