@@ -49,6 +49,7 @@ enum Section {
     General,
     Overlay,
     Appearance,
+    Privacy,
     Updates,
 }
 
@@ -58,6 +59,7 @@ impl Section {
             Self::General => "icons/settings.svg",
             Self::Overlay => "icons/panels.svg",
             Self::Appearance => "icons/palette.svg",
+            Self::Privacy => "icons/shield.svg",
             Self::Updates => "icons/update.svg",
         }
     }
@@ -67,6 +69,7 @@ impl Section {
             Self::General => "General",
             Self::Overlay => "Overlay",
             Self::Appearance => "Appearance",
+            Self::Privacy => "Privacy",
             Self::Updates => "Updates",
         }
     }
@@ -315,8 +318,12 @@ impl Settings {
             {
                 let shared = app_state();
                 let mut state = shared.write().unwrap();
+                let was_accepting = state.config.accept_connections;
                 state.config = next;
                 state.prune_notifications();
+                if was_accepting && !state.config.accept_connections {
+                    state.disconnect_clients();
+                }
             }
             windows::open_overlay(cx)?;
             Ok(())
@@ -594,13 +601,21 @@ impl Settings {
         let state = shared.read().unwrap();
         let client = state.integration();
         let connected = client.is_some() || state.legacy_source.is_some();
-        let title = match (client, connected, port) {
-            (Some(client), _, _) => client.name.clone(),
-            (_, true, _) => "Unnamed integration".into(),
-            (_, _, Some(_)) => "Waiting for a client".into(),
-            _ => "Listener offline".into(),
+        let accepting = state.config.accept_connections;
+        let showing = connected && accepting;
+        let title = if !accepting {
+            "Connections paused".into()
+        } else {
+            match (client, connected, port) {
+                (Some(client), _, _) => client.name.clone(),
+                (_, true, _) => "Unnamed integration".into(),
+                (_, _, Some(_)) => "Waiting for a client".into(),
+                _ => "Listener offline".into(),
+            }
         };
-        let detail = if connected {
+        let detail = if !accepting {
+            Some("Not accepting connections.".into())
+        } else if connected {
             client
                 .and_then(|c| c.version.as_ref())
                 .map(|v| format!("Version {v}"))
@@ -616,7 +631,7 @@ impl Settings {
             .items_center()
             .gap_2()
             .when_some(detail, |row, text| row.child(note(text).text_xs()))
-            .when(connected, |row| {
+            .when(showing, |row| {
                 let (label, color) = if state.in_call {
                     ("In call", 0x97dfb5)
                 } else {
@@ -646,7 +661,7 @@ impl Settings {
                     .child(title),
             )
             .child(metadata)
-            .when(connected, |d| {
+            .when(showing, |d| {
                 let mut actions = div()
                     .flex()
                     .flex_wrap()
@@ -698,14 +713,13 @@ impl Settings {
                     .items_center()
                     .justify_center()
                     .rounded_lg()
-                    .bg(rgb(if connected { 0x42312d } else { theme::BORDER }))
-                    .child(svg().path("icons/plug.svg").size(px(21.)).text_color(rgb(
-                        if connected {
-                            theme::ACCENT
-                        } else {
-                            theme::MUTED
-                        },
-                    ))),
+                    .bg(rgb(if showing { 0x42312d } else { theme::BORDER }))
+                    .child(
+                        svg()
+                            .path("icons/plug.svg")
+                            .size(px(21.))
+                            .text_color(rgb(if showing { theme::ACCENT } else { theme::MUTED })),
+                    ),
             )
             .child(identity);
         div()
@@ -979,6 +993,47 @@ impl Settings {
             )
     }
 
+    fn privacy(&self, cx: &Context<Self>) -> Div {
+        let connections = card()
+            .child(preference_row(
+                "Accept connections",
+                "Allow integrations to connect to Yaplay. Turning this off refuses new connections and disconnects the current client.",
+                Switch::new("accept-connections")
+                    .checked(self.config.accept_connections)
+                    .on_click(cx.listener(|this, value, _, cx| {
+                        this.config.accept_connections = *value;
+                        cx.notify();
+                    })),
+            ))
+            .when(!self.config.accept_connections, |card| {
+                card.child(
+                    note("Saving disconnects the current client and refuses new integrations.")
+                        .text_color(rgb(0xffb49b)),
+                )
+            });
+        div()
+            .flex()
+            .flex_col()
+            .gap_5()
+            .child(group("Connections", connections))
+            .child(group(
+                "Connection awareness",
+                card().child(preference_row(
+                    "Notify when a client connects",
+                    "Show a card whenever an integration connects to Yaplay. Leaving this on helps you notice unexpected connections.",
+                    Switch::new("connection-notifications")
+                        .checked(self.config.connection_notifications)
+                        .on_click(cx.listener(|this, value, _, cx| {
+                            this.config.connection_notifications = *value;
+                            cx.notify();
+                        })),
+                )),
+            ))
+            .child(note(
+                "Turning notifications off hides only the connection card. The active client stays visible in General.",
+            ))
+    }
+
     fn updates(&self, cx: &Context<Self>) -> Div {
         div()
             .flex()
@@ -1011,6 +1066,7 @@ impl Render for Settings {
             Section::General,
             Section::Overlay,
             Section::Appearance,
+            Section::Privacy,
             Section::Updates,
         ] {
             let active = self.section == section;
@@ -1058,6 +1114,7 @@ impl Render for Settings {
             Section::General => self.general(cx),
             Section::Overlay => self.overlay(cx),
             Section::Appearance => self.appearance_page(cx),
+            Section::Privacy => self.privacy(cx),
             Section::Updates => self.updates(cx),
         };
         let running = cx.global::<Desktop>().overlay.is_some();

@@ -153,6 +153,7 @@ pub struct AppState {
     pub arranging: bool,
     stopped_speaking: HashMap<String, Instant>,
     next_notification_id: u64,
+    disconnect: Option<tokio::sync::broadcast::Sender<()>>,
 }
 
 impl AppState {
@@ -170,6 +171,24 @@ impl AppState {
     pub fn request_control(&self, action: ControlAction) {
         if let Some(client) = self.active.as_ref().filter(|_| self.permits(&action)) {
             let _ = client.sender.try_send(action);
+        }
+    }
+
+    /// Register a connection for the next forced disconnect, refusing to hand
+    /// one out while connections are disabled.
+    pub fn subscribe_disconnects(&mut self) -> Option<tokio::sync::broadcast::Receiver<()>> {
+        if !self.config.accept_connections {
+            return None;
+        }
+        let sender = self
+            .disconnect
+            .get_or_insert_with(|| tokio::sync::broadcast::channel(1).0);
+        Some(sender.subscribe())
+    }
+
+    pub fn disconnect_clients(&mut self) {
+        if let Some(sender) = &self.disconnect {
+            let _ = sender.send(());
         }
     }
 
