@@ -87,6 +87,14 @@ async fn server_loop(port: u16, state: SharedState, sender: mpsc::Sender<Result<
     loop {
         match listener.accept().await {
             Ok((stream, peer)) => {
+                if state
+                    .read()
+                    .is_ok_and(|state| !state.config.accept_connections)
+                {
+                    println!("Rejected WebSocket client: {}", peer);
+                    drop(stream);
+                    continue;
+                }
                 println!("WebSocket client connected: {}", peer);
                 let state = state.clone();
                 tokio::spawn(async move {
@@ -148,6 +156,12 @@ fn valid_label(value: &str) -> bool {
 }
 
 async fn handle_connection(stream: tokio::net::TcpStream, state: SharedState) {
+    if state
+        .read()
+        .is_ok_and(|state| !state.config.accept_connections)
+    {
+        return;
+    }
     let config = WebSocketConfig::default()
         .max_message_size(Some(1024 * 1024))
         .max_frame_size(Some(1024 * 1024));
@@ -167,7 +181,18 @@ async fn handle_connection(stream: tokio::net::TcpStream, state: SharedState) {
             return;
         }
     };
-    if let Ok(mut state) = state.write() {
+    // Re-check under the same lock that hands out the disconnect signal, so a
+    // disable that raced the handshake cannot slip through.
+    let Some(mut disconnect) = state
+        .write()
+        .ok()
+        .and_then(|mut state| state.subscribe_disconnects())
+    else {
+        return;
+    };
+    if let Ok(mut state) = state.write()
+        && state.config.connection_notifications
+    {
         state.push_notification("Client connected", "An application connected to Yaplay");
     }
 
@@ -178,6 +203,10 @@ async fn handle_connection(stream: tokio::net::TcpStream, state: SharedState) {
     };
     loop {
         tokio::select! {
+            _ = disconnect.recv() => {
+                let _ = stream.close(None).await;
+                break;
+            }
             message = stream.next() => match message {
                 Some(Ok(Message::Text(text))) => match serde_json::from_str::<ServerMessage>(&text) {
                     Ok(ServerMessage::Hello { version: 2, name: Some(name), client_version, actions: Some(actions), .. })
@@ -284,6 +313,81 @@ mod tests {
         let state = state.read().unwrap();
         assert!(state.mic_muted);
         assert_eq!(state.notifications.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn connection_notification_can_be_disabled() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let state = Arc::new(RwLock::new(AppState::default()));
+        state.write().unwrap().config.connection_notifications = false;
+        let shared = state.clone();
+        let server = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            handle_connection(stream, shared).await;
+        });
+        let (mut client, _) = tokio_tungstenite::connect_async(format!("ws://{address}"))
+            .await
+            .unwrap();
+        client.close(None).await.unwrap();
+        tokio::time::timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(state.read().unwrap().notifications.is_empty());
+    }
+
+    #[tokio::test]
+    async fn disabled_connections_are_rejected() {
+        use tokio::io::AsyncReadExt;
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let state = Arc::new(RwLock::new(AppState::default()));
+        state.write().unwrap().config.accept_connections = false;
+        let (client, _) = tokio::join!(tokio::net::TcpStream::connect(address), async {
+            let (stream, _) = listener.accept().await.unwrap();
+            handle_connection(stream, state.clone()).await;
+        });
+        let mut client = client.unwrap();
+        let mut buffer = [0u8; 1];
+        assert_eq!(client.read(&mut buffer).await.unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn disabling_connections_closes_the_active_client() {
+        let state = Arc::new(RwLock::new(AppState::default()));
+        let (mut client, server) = connect_test(state.clone()).await;
+        publish(
+            &mut client,
+            &[
+                r#"{"type":"hello","version":1,"controls":true}"#,
+                r#"{"type":"voice_state","in_call":true,"members":[]}"#,
+            ],
+        )
+        .await;
+        assert!(state.read().unwrap().in_call);
+
+        {
+            let mut state = state.write().unwrap();
+            state.config.accept_connections = false;
+            state.disconnect_clients();
+        }
+
+        let message = tokio::time::timeout(Duration::from_secs(2), client.next())
+            .await
+            .unwrap();
+        assert!(matches!(
+            message,
+            Some(Ok(Message::Close(_))) | None | Some(Err(_))
+        ));
+        tokio::time::timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+        let state = state.read().unwrap();
+        assert!(state.integration().is_none());
+        assert!(!state.in_call);
     }
 
     #[tokio::test]

@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Settings → Privacy** has a **Notify when a client connects** switch. Turn it off to stop the connection card while keeping the active client visible in **General**. [Connection notices](site/content/docs/appearance.mdx#client-connections)
+- **Settings → Privacy → Connections** can refuse new integrations and disconnect the current client with **Accept connections**. Blocked connections show **Connections paused** in **General**. [Blocking connections](site/content/docs/appearance.mdx#client-connections)
+
 ## [1.6.0] (2026-11-23)
 
 ### Added

@@ -56,6 +56,7 @@ impl AssetSource for Assets {
             "icons/panels.svg" => include_bytes!("assets/icons/panels.svg"),
             "icons/palette.svg" => include_bytes!("assets/icons/palette.svg"),
             "icons/update.svg" => include_bytes!("assets/icons/update.svg"),
+            "icons/shield.svg" => include_bytes!("assets/icons/shield.svg"),
             "icons/plug.svg" => include_bytes!("assets/icons/plug.svg"),
             "icons/settings.svg" => include_bytes!("assets/icons/settings.svg"),
             "icons/phone-off.svg" => include_bytes!("assets/icons/phone-off.svg"),
