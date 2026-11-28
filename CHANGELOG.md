@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.7.0] (2026-11-28)
+
 ### Added
 
 - **Settings → Privacy** has a **Notify when a client connects** switch. Turn it off to stop the connection card while keeping the active client visible in **General**. [Connection notices](site/content/docs/appearance.mdx#client-connections)
